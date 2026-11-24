@@ -126,7 +126,7 @@ Because none of this goes through the API, there is no rate limit to worry about
 | Command | Behavior |
 |---|---|
 | `boy i <name>` | Install the latest version and record it in `lock.toml`. |
-| `boy i <name>@<version>` | Install that exact version and mark it as pinned. |
+| `boy i <name>@<version>` | Install that exact version and mark it as pinned. If another version is installed, switch to this one and delete the old one (this is the rollback). |
 | `boy r <name>` | Remove the package folder and its symlinks, and drop it from `lock.toml`. |
 | `boy l` | List installed packages with their versions, marking pinned ones. |
 | `boy s <query>` | Search the local registry copy by name, description and commands. No network. |
