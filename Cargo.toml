@@ -6,8 +6,15 @@ description = "A personal package manager for prebuilt binaries"
 publish = false
 
 [dependencies]
+anyhow = "1.0.105"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.2.2"
+ureq = "3.5.2"
 
 [profile.release]
 strip = true
 lto = true
 codegen-units = 1
+
+[dev-dependencies]
+tempfile = "3.27.0"

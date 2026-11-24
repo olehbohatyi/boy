@@ -22,5 +22,9 @@ fn no_arguments_prints_the_five_commands() {
 fn unknown_command_fails_with_help() {
     let out = boy(&["x"]);
     assert_eq!(out.status.code(), Some(2));
-    assert!(String::from_utf8(out.stderr).unwrap().contains("unknown command"));
+    assert!(
+        String::from_utf8(out.stderr)
+            .unwrap()
+            .contains("unknown command")
+    );
 }

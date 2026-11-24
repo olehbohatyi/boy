@@ -1,0 +1,9 @@
+name = "jq"
+from = "github"
+repo = "jqlang/jq"
+tags = "jq-{version}"
+bins = ["jq"]
+
+[plat]
+macos-x86_64  = { file = "jq-macos-amd64", path = "jq" }
+macos-aarch64 = { file = "jq-macos-arm64", path = "jq" }

@@ -26,6 +26,11 @@ jobs:
         with:
           toolchain: "1.100.0" # keep in sync with rust-toolchain.toml
           targets: ${{ matrix.target }}
+          components: clippy, rustfmt
+      - name: Lint
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets --target ${{ matrix.target }} -- -D warnings
       - name: Test
         run: cargo test --target ${{ matrix.target }}
       - name: Build release
