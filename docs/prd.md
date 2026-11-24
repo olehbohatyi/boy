@@ -133,6 +133,14 @@ Because none of this goes through the API, there is no rate limit to worry about
 | `boy u` | Refresh the registry, update every package that is not pinned, then clean up. |
 | `boy u <name>` | Update one package. This also unpins it. |
 
+`boy l` prints one line per package, sorted by name, in aligned columns; pinned packages are marked. With nothing installed it prints `nothing installed`.
+
+```
+hyperfine  2.0.0
+jq         1.7.1   pinned
+just       1.59.0
+```
+
 `boy u` does three steps: refresh the registry, upgrade the packages, clear old versions. Upgrading extracts the new version next to the old one and switches the symlinks. At the end boy asks one question for everything it updated:
 
 ```
@@ -207,7 +215,7 @@ After v1, fzf, helix, ripgrep-all and delta are added to the registry one at a t
 
 ## 15. Open Questions
 
-- The output format of `boy l` and `boy s`.
+- The output format of `boy s`.
 - Where `install.sh` is served from (raw file in the boy repository or a release asset).
 
 ## 16. Workflow
