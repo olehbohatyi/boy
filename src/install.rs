@@ -9,11 +9,20 @@ use crate::defs::{self, Def};
 use crate::github;
 use crate::home::Home;
 use crate::lock::{Entry, Lock};
+use crate::registry;
 use crate::sums;
 
 pub fn install(home: &Home, name: &str) -> Result<()> {
     home.ensure()?;
-    let def = Def::load(&home.defs(), name)?;
+    // Not in the local copy: the registry may have it by now.
+    let def = match Def::find(&home.defs(), name)? {
+        Some(def) => def,
+        None => {
+            eprintln!("updating the registry");
+            registry::refresh(home)?;
+            Def::load(&home.defs(), name)?
+        }
+    };
     if def.from != "github" {
         bail!(
             "`{name}` uses source `{}`, which this boy does not support",
@@ -203,6 +212,19 @@ fn link(target: &Path, link: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The fallback in `install`: a home without `defs/` fetches the registry first.
+    /// Hits the network; run with `cargo test -- --ignored`.
+    #[test]
+    #[ignore]
+    fn installs_on_a_clean_home_by_fetching_the_registry() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = Home::at(dir.path());
+        install(&home, "jq").unwrap();
+        assert!(home.defs().join("jq.toml").exists());
+        assert!(home.bins().join("jq").exists());
+        assert!(Lock::load(&home.lock()).unwrap().pkgs.contains_key("jq"));
+    }
 
     #[test]
     fn single_command_uses_path() {

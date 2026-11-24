@@ -42,21 +42,16 @@ impl Def {
 
     /// Load `<defs>/<name>.toml`.
     pub fn load(defs: &Path, name: &str) -> Result<Self> {
-        // The name becomes a file and folder name, so it must not contain a path.
-        let plain = !name.is_empty()
-            && !name.starts_with('.')
-            && name
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b));
-        if !plain {
-            bail!("`{name}` is not a valid package name");
-        }
+        Self::find(defs, name)?.with_context(|| format!("`{name}` is not in the registry"))
+    }
+
+    /// Like `load`, but `None` when the registry has no such program.
+    pub fn find(defs: &Path, name: &str) -> Result<Option<Self>> {
+        check_name(name)?;
         let file = defs.join(format!("{name}.toml"));
         let text = match std::fs::read_to_string(&file) {
             Ok(text) => text,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                bail!("`{name}` is not in the registry")
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(e).with_context(|| format!("cannot read {}", file.display())),
         };
         let def =
@@ -64,7 +59,7 @@ impl Def {
         if def.name != name {
             bail!("{} says its name is `{}`", file.display(), def.name);
         }
-        Ok(def)
+        Ok(Some(def))
     }
 
     /// The entry for the platform boy is running on.
@@ -78,6 +73,19 @@ impl Def {
     pub fn tag_pattern(&self) -> TagPattern {
         TagPattern::new(&self.tags).expect("validated in parse")
     }
+}
+
+/// A package name becomes a file and folder name, so it must not contain a path.
+pub fn check_name(name: &str) -> Result<()> {
+    let plain = !name.is_empty()
+        && !name.starts_with('.')
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b));
+    if !plain {
+        bail!("`{name}` is not a valid package name");
+    }
+    Ok(())
 }
 
 /// `macos-x86_64`, `macos-aarch64`, ...
@@ -141,6 +149,20 @@ mod tests {
         macos-x86_64  = { file = "jq-macos-amd64", path = "jq" }
         macos-aarch64 = { file = "jq-macos-arm64", path = "jq" }
     "#;
+
+    #[test]
+    fn find_is_none_for_a_missing_definition_and_load_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(Def::find(dir.path(), "jq").unwrap().is_none());
+        let err = Def::load(dir.path(), "jq").unwrap_err();
+        assert!(err.to_string().contains("not in the registry"));
+
+        std::fs::write(dir.path().join("jq.toml"), JQ).unwrap();
+        assert_eq!(
+            Def::find(dir.path(), "jq").unwrap().unwrap().repo,
+            "jqlang/jq"
+        );
+    }
 
     #[test]
     fn rejects_names_with_paths() {
