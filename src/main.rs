@@ -51,11 +51,11 @@ fn main() -> ExitCode {
 fn run(cmd: &str, args: &[&str]) -> Result<()> {
     let home = home::Home::discover()?;
     match (cmd, args) {
-        ("i", [name]) if name.contains('@') => {
-            bail!("installing a pinned version is not implemented yet")
-        }
-        ("i", [name]) => install::install(&home, name),
-        ("i", _) => bail!("usage: boy i <name>"),
+        ("i", [arg]) => match arg.split_once('@') {
+            Some((name, version)) => install::install(&home, name, Some(version)),
+            None => install::install(&home, arg, None),
+        },
+        ("i", _) => bail!("usage: boy i <name>[@version]"),
         ("l", []) => list::list(&home),
         ("l", _) => bail!("usage: boy l"),
         ("r", [name]) => remove::remove(&home, name),

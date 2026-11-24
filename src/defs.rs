@@ -75,6 +75,19 @@ impl Def {
     }
 }
 
+/// A version from the command line becomes part of a URL and a folder name.
+pub fn check_version(version: &str) -> Result<()> {
+    let plain = !version.is_empty()
+        && !version.starts_with('.')
+        && version
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.+".contains(&b));
+    if !plain {
+        bail!("`{version}` is not a valid version");
+    }
+    Ok(())
+}
+
 /// A package name becomes a file and folder name, so it must not contain a path.
 pub fn check_name(name: &str) -> Result<()> {
     let plain = !name.is_empty()
@@ -122,7 +135,6 @@ impl TagPattern {
         }
     }
 
-    #[allow(dead_code, reason = "pinned installs arrive in OLE-12")]
     pub fn tag(&self, version: &str) -> String {
         format!("{}{version}{}", self.prefix, self.suffix)
     }
@@ -162,6 +174,16 @@ mod tests {
             Def::find(dir.path(), "jq").unwrap().unwrap().repo,
             "jqlang/jq"
         );
+    }
+
+    #[test]
+    fn checks_versions() {
+        for ok in ["1.7.1", "2.0.0-rc.1", "1.0+build"] {
+            assert!(check_version(ok).is_ok(), "{ok}");
+        }
+        for bad in ["", "../1", "1/2", ".1", "1 2"] {
+            assert!(check_version(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]
