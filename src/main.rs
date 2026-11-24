@@ -9,6 +9,7 @@ mod registry;
 mod remove;
 mod search;
 mod sums;
+mod update;
 
 use std::process::ExitCode;
 
@@ -64,6 +65,9 @@ fn run(cmd: &str, args: &[&str]) -> Result<()> {
         ("s", []) => search::search(&home, None),
         ("s", [query]) => search::search(&home, Some(query)),
         ("s", _) => bail!("usage: boy s [query]"),
+        ("u", []) => update::update(&home, None),
+        ("u", [name]) => update::update(&home, Some(name)),
+        ("u", _) => bail!("usage: boy u [name]"),
         _ => bail!("`{cmd}` is not implemented yet"),
     }
 }
