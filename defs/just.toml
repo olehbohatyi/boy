@@ -1,4 +1,5 @@
 name = "just"
+info = "Command runner for project tasks"
 from = "github"
 repo = "casey/just"
 tags = "{version}"

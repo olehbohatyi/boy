@@ -68,6 +68,7 @@ All keys have four letters.
 | Key | Required | Meaning |
 |---|---|---|
 | `name` | yes | Program name, used in `boy i <name>`. Matches the file name. |
+| `info` | no | One-line description, shown and searched by `boy s`. Every registry definition has one. |
 | `from` | yes | Source type. Selects the implementation that fetches it. v1 supports only `github`. |
 | `repo` | yes | Where the program lives in that source, for example `jqlang/jq`. |
 | `tags` | no | Release tag pattern. Default `v{version}`. |
@@ -81,6 +82,7 @@ Example: a bare binary with a tag prefix and a checksum file.
 
 ```toml
 name = "jq"
+info = "Command-line JSON processor"
 from = "github"
 repo = "jqlang/jq"
 tags = "jq-{version}"
@@ -129,7 +131,7 @@ Because none of this goes through the API, there is no rate limit to worry about
 | `boy i <name>@<version>` | Install that exact version and mark it as pinned. If another version is installed, switch to this one and delete the old one (this is the rollback). |
 | `boy r <name>` | Remove the package folder and its symlinks, and drop it from `lock.toml`. |
 | `boy l` | List installed packages with their versions, marking pinned ones. |
-| `boy s <query>` | Search the local registry copy by name, description and commands. No network. |
+| `boy s [query]` | Search the local registry copy by name, description and commands, ignoring case; without a query, list every program. No network, except that the very first search fetches the registry. |
 | `boy u` | Refresh the registry, update every package that is not pinned, then clean up. |
 | `boy u <name>` | Update one package. This also unpins it. |
 
@@ -139,6 +141,14 @@ Because none of this goes through the API, there is no rate limit to worry about
 hyperfine  2.0.0
 jq         1.7.1   pinned
 just       1.59.0
+```
+
+`boy s` prints one line per program, sorted by name, with its description; installed programs are marked with their version. With no match it prints ``nothing found for `<query>` ``.
+
+```
+hyperfine  Command-line benchmarking tool
+jq         Command-line JSON processor      installed 1.8.2
+just       Command runner for project tasks
 ```
 
 `boy u` does three steps: refresh the registry, upgrade the packages, clear old versions. Upgrading extracts the new version next to the old one and switches the symlinks. At the end boy asks one question for everything it updated:
@@ -215,7 +225,6 @@ After v1, fzf, helix, ripgrep-all and delta are added to the registry one at a t
 
 ## 15. Open Questions
 
-- The output format of `boy s`.
 - Where `install.sh` is served from (raw file in the boy repository or a release asset).
 
 ## 16. Workflow

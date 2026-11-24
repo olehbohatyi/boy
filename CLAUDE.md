@@ -23,7 +23,7 @@ cargo test -- --ignored   # tests that hit the network
 - `src/sums.rs`: SHA-256 checks against a release's checksum file.
 - `src/archive.rs`: unpacking `.tar.gz` and `.zip`.
 - `src/registry.rs`: the local registry copy, refreshed from this repository's archive by direct link.
-- `src/install.rs`, `src/list.rs`, `src/remove.rs`: commands.
+- `src/install.rs`, `src/list.rs`, `src/remove.rs`, `src/search.rs`: commands.
 - `defs/`: the registry, one TOML file per program.
 
 ## Rules
@@ -32,7 +32,7 @@ cargo test -- --ignored   # tests that hit the network
 - **Nothing outside the boy home.** Archive entries, `path` values and symlinked commands must stay inside the package folder; boy never edits shell files or anything else on the system.
 - **Never leave half state.** Download into `temp/`, stage the release there, then move it into `pkgs/` in one rename; on any error `temp/`, `pkgs/`, `bins/` and `lock.toml` are left as they were.
 - **Symlinks in `bins/` are relative** (`../pkgs/<name>/<version>/...`), so the whole home folder can be moved.
-- **Four-letter names** for folders and definition keys (`bins`, `pkgs`, `defs`, `temp`, `name`, `from`, `repo`, `tags`, `sums`, `plat`, `file`, `path`). Unknown keys in a definition are an error.
+- **Four-letter names** for folders and definition keys (`bins`, `pkgs`, `defs`, `temp`, `name`, `info`, `from`, `repo`, `tags`, `sums`, `plat`, `file`, `path`). Unknown keys in a definition are an error.
 - **Curated registry:** every definition names its release files explicitly with `{version}` templates; no guessing.
 - Unit tests live next to the code (`#[cfg(test)]`); tests that need the network are `#[ignore]`. A bug fix comes with a test.
 - Error messages are lowercase, start without `error:` (main adds `boy:`), and say what to check.

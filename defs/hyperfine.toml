@@ -1,4 +1,5 @@
 name = "hyperfine"
+info = "Command-line benchmarking tool"
 from = "github"
 repo = "sharkdp/hyperfine"
 bins = ["hyperfine"]
