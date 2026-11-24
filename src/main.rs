@@ -5,6 +5,7 @@ mod home;
 mod install;
 mod list;
 mod lock;
+mod remove;
 mod sums;
 
 use std::process::ExitCode;
@@ -56,6 +57,8 @@ fn run(cmd: &str, args: &[&str]) -> Result<()> {
         ("i", _) => bail!("usage: boy i <name>"),
         ("l", []) => list::list(&home),
         ("l", _) => bail!("usage: boy l"),
+        ("r", [name]) => remove::remove(&home, name),
+        ("r", _) => bail!("usage: boy r <name>"),
         _ => bail!("`{cmd}` is not implemented yet"),
     }
 }
