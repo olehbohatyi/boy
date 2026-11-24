@@ -151,6 +151,20 @@ mod tests {
     "#;
 
     #[test]
+    fn find_is_none_for_a_missing_definition_and_load_says_so() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(Def::find(dir.path(), "jq").unwrap().is_none());
+        let err = Def::load(dir.path(), "jq").unwrap_err();
+        assert!(err.to_string().contains("not in the registry"));
+
+        std::fs::write(dir.path().join("jq.toml"), JQ).unwrap();
+        assert_eq!(
+            Def::find(dir.path(), "jq").unwrap().unwrap().repo,
+            "jqlang/jq"
+        );
+    }
+
+    #[test]
     fn rejects_names_with_paths() {
         let dir = tempfile::tempdir().unwrap();
         for bad in ["../x", "a/b", ".hidden", ""] {

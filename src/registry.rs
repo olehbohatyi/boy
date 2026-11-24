@@ -73,6 +73,9 @@ fn extract_defs(archive: &Path, dest: &Path) -> Result<usize> {
 }
 
 /// Put `fresh` in place of `current`; the old copy goes through `old` and is deleted.
+///
+/// This takes two renames, so a crash between them leaves no `defs/` at all. That is
+/// safe: the next `boy i` finds no definition and refreshes the registry again.
 fn swap(current: &Path, fresh: &Path, old: &Path) -> Result<()> {
     if old.exists() {
         std::fs::remove_dir_all(old)?;
