@@ -22,7 +22,8 @@ cargo test -- --ignored   # tests that hit the network
 - `src/github.rs`: the `github` source. Public release links only.
 - `src/sums.rs`: SHA-256 checks against a release's checksum file.
 - `src/archive.rs`: unpacking `.tar.gz` and `.zip`.
-- `src/install.rs`, `src/list.rs`: commands.
+- `src/registry.rs`: the local registry copy, refreshed from this repository's archive by direct link.
+- `src/install.rs`, `src/list.rs`, `src/remove.rs`: commands.
 - `defs/`: the registry, one TOML file per program.
 
 ## Rules

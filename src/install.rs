@@ -9,11 +9,20 @@ use crate::defs::{self, Def};
 use crate::github;
 use crate::home::Home;
 use crate::lock::{Entry, Lock};
+use crate::registry;
 use crate::sums;
 
 pub fn install(home: &Home, name: &str) -> Result<()> {
     home.ensure()?;
-    let def = Def::load(&home.defs(), name)?;
+    // Not in the local copy: the registry may have it by now.
+    let def = match Def::find(&home.defs(), name)? {
+        Some(def) => def,
+        None => {
+            eprintln!("updating the registry");
+            registry::refresh(home)?;
+            Def::load(&home.defs(), name)?
+        }
+    };
     if def.from != "github" {
         bail!(
             "`{name}` uses source `{}`, which this boy does not support",

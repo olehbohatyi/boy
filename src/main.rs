@@ -5,6 +5,7 @@ mod home;
 mod install;
 mod list;
 mod lock;
+mod registry;
 mod remove;
 mod sums;
 
