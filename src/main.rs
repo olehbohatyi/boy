@@ -7,6 +7,7 @@ mod list;
 mod lock;
 mod registry;
 mod remove;
+mod search;
 mod sums;
 
 use std::process::ExitCode;
@@ -20,7 +21,7 @@ const HELP: &str = concat!(
     "  i <name>[@version]  install\n",
     "  r <name>            remove\n",
     "  l                   list installed\n",
-    "  s <query>           search\n",
+    "  s [query]           search\n",
     "  u [name]            update\n",
 );
 
@@ -60,6 +61,9 @@ fn run(cmd: &str, args: &[&str]) -> Result<()> {
         ("l", _) => bail!("usage: boy l"),
         ("r", [name]) => remove::remove(&home, name),
         ("r", _) => bail!("usage: boy r <name>"),
+        ("s", []) => search::search(&home, None),
+        ("s", [query]) => search::search(&home, Some(query)),
+        ("s", _) => bail!("usage: boy s [query]"),
         _ => bail!("`{cmd}` is not implemented yet"),
     }
 }

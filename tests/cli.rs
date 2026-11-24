@@ -13,7 +13,7 @@ fn no_arguments_prints_the_five_commands() {
     assert!(out.status.success());
 
     let text = String::from_utf8(out.stdout).unwrap();
-    for cmd in ["i <name>", "r <name>", "l ", "s <query>", "u [name]"] {
+    for cmd in ["i <name>", "r <name>", "l ", "s [query]", "u [name]"] {
         assert!(text.contains(cmd), "missing `{cmd}` in:\n{text}");
     }
 }

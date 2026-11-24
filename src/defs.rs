@@ -10,6 +10,9 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub struct Def {
     pub name: String,
+    /// One-line description, shown and searched by `boy s`.
+    #[serde(default)]
+    pub info: String,
     pub from: String,
     pub repo: String,
     #[serde(default = "default_tags")]

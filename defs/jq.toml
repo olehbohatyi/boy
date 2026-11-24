@@ -1,4 +1,5 @@
 name = "jq"
+info = "Command-line JSON processor"
 from = "github"
 repo = "jqlang/jq"
 tags = "jq-{version}"
