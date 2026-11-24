@@ -1,3 +1,4 @@
+mod archive;
 mod defs;
 mod github;
 mod home;

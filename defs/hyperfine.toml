@@ -1,0 +1,8 @@
+name = "hyperfine"
+from = "github"
+repo = "sharkdp/hyperfine"
+bins = ["hyperfine"]
+
+[plat]
+macos-x86_64  = { file = "hyperfine-v{version}-x86_64-apple-darwin.tar.gz", path = "hyperfine-v{version}-x86_64-apple-darwin/hyperfine" }
+macos-aarch64 = { file = "hyperfine-v{version}-aarch64-apple-darwin.tar.gz", path = "hyperfine-v{version}-aarch64-apple-darwin/hyperfine" }

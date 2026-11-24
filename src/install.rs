@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+use crate::archive::{self, Kind};
 use crate::defs::{self, Def};
 use crate::github;
 use crate::home::Home;
@@ -41,15 +42,26 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
 
     let file = defs::expand(&plat.file, &version);
     let exe = safe_relative(&defs::expand(&plat.path, &version))?;
-    if is_archive(&file) {
-        bail!("`{file}` is an archive; archives are not supported yet");
+    let kind = Kind::of(&file);
+    if kind == Kind::TarXz {
+        bail!("`{file}`: .tar.xz files are not supported yet");
     }
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));
-    github::download(&github::download_url(&def.repo, &tag, &file), &part)?;
-    if let Err(e) = check_sums(home, &def, &tag, &version, &file, &part) {
+    let fetched = github::download(&github::download_url(&def.repo, &tag, &file), &part)
+        .and_then(|()| check_sums(home, &def, &tag, &version, &file, &part));
+    if let Err(e) = fetched {
         let _ = std::fs::remove_file(&part);
+        return Err(e);
+    }
+
+    // Unpack into a staging folder in temp/, then move it into pkgs/ in one step.
+    let stage = home.temp().join(format!("{name}-{version}.d"));
+    let staged = stage_release(&part, kind, &stage, &exe, &def.bins, &file);
+    let _ = std::fs::remove_file(&part);
+    if let Err(e) = staged {
+        let _ = std::fs::remove_dir_all(&stage);
         return Err(e);
     }
 
@@ -57,11 +69,9 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
     if pkg_dir.exists() {
         std::fs::remove_dir_all(&pkg_dir)?;
     }
-    let dest = pkg_dir.join(&exe);
-    std::fs::create_dir_all(dest.parent().expect("inside pkg_dir"))?;
-    std::fs::rename(&part, &dest)
-        .with_context(|| format!("cannot move into {}", dest.display()))?;
-    make_executable(&dest)?;
+    std::fs::create_dir_all(home.pkgs().join(name))?;
+    std::fs::rename(&stage, &pkg_dir)
+        .with_context(|| format!("cannot move into {}", pkg_dir.display()))?;
 
     for bin in &def.bins {
         let target = Path::new("..")
@@ -84,6 +94,42 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
     lock.save(&home.lock())?;
 
     println!("installed {name} {version}");
+    Ok(())
+}
+
+/// Put the release into `stage` and check every command is where the definition says.
+fn stage_release(
+    part: &Path,
+    kind: Kind,
+    stage: &Path,
+    exe: &Path,
+    bins: &[String],
+    file: &str,
+) -> Result<()> {
+    if stage.exists() {
+        std::fs::remove_dir_all(stage)?;
+    }
+    std::fs::create_dir_all(stage)?;
+    if kind == Kind::Bare {
+        let dest = stage.join(exe);
+        std::fs::create_dir_all(dest.parent().expect("inside stage"))?;
+        std::fs::copy(part, &dest)?;
+    } else {
+        archive::extract(part, kind, stage)?;
+    }
+    let root = stage.canonicalize()?;
+    for bin in bins {
+        let rel = bin_path(exe, bin, bins.len());
+        let path = stage.join(&rel);
+        if !path.is_file() {
+            bail!("`{}` is not in `{file}` (check `path`)", rel.display());
+        }
+        // A command may be a symlink inside the release, but never to a file outside it.
+        if !path.canonicalize()?.starts_with(&root) {
+            bail!("`{}` in `{file}` points outside the package", rel.display());
+        }
+        make_executable(&path)?;
+    }
     Ok(())
 }
 
@@ -132,12 +178,6 @@ fn safe_relative(path: &str) -> Result<PathBuf> {
         bail!("`path = \"{path}\"` must be a plain relative path");
     }
     Ok(p)
-}
-
-fn is_archive(file: &str) -> bool {
-    [".tar.gz", ".tgz", ".tar.xz", ".zip"]
-        .iter()
-        .any(|ext| file.ends_with(ext))
 }
 
 fn make_executable(path: &Path) -> Result<()> {
@@ -190,9 +230,28 @@ mod tests {
     }
 
     #[test]
-    fn detects_archives() {
-        assert!(is_archive("x.tar.gz"));
-        assert!(!is_archive("jq-macos-amd64"));
+    fn staging_refuses_a_command_that_points_outside_the_package() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = dir.path().join("outside");
+        std::fs::write(&outside, "x").unwrap();
+        // A release whose `jq` is a symlink to a file outside the package.
+        let tarball = dir.path().join("a.tar.gz");
+        let enc = flate2::write::GzEncoder::new(
+            std::fs::File::create(&tarball).unwrap(),
+            Default::default(),
+        );
+        let mut tar = tar::Builder::new(enc);
+        let mut h = tar::Header::new_gnu();
+        h.set_entry_type(tar::EntryType::Symlink);
+        h.set_size(0);
+        tar.append_link(&mut h, "jq", &outside).unwrap();
+        tar.into_inner().unwrap().finish().unwrap();
+
+        let stage = dir.path().join("stage");
+        let bins = vec!["jq".to_string()];
+        let err =
+            stage_release(&tarball, Kind::TarGz, &stage, Path::new("jq"), &bins, "f").unwrap_err();
+        assert!(err.to_string().contains("outside"), "{err}");
     }
 
     #[test]

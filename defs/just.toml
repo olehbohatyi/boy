@@ -1,0 +1,10 @@
+name = "just"
+from = "github"
+repo = "casey/just"
+tags = "{version}"
+bins = ["just"]
+sums = "SHA256SUMS"
+
+[plat]
+macos-x86_64  = { file = "just-{version}-x86_64-apple-darwin.tar.gz", path = "just" }
+macos-aarch64 = { file = "just-{version}-aarch64-apple-darwin.tar.gz", path = "just" }
