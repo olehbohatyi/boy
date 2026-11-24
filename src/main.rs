@@ -3,6 +3,7 @@ mod defs;
 mod github;
 mod home;
 mod install;
+mod list;
 mod lock;
 mod sums;
 
@@ -53,6 +54,8 @@ fn run(cmd: &str, args: &[&str]) -> Result<()> {
         }
         ("i", [name]) => install::install(&home, name),
         ("i", _) => bail!("usage: boy i <name>"),
+        ("l", []) => list::list(&home),
+        ("l", _) => bail!("usage: boy l"),
         _ => bail!("`{cmd}` is not implemented yet"),
     }
 }
