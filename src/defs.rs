@@ -42,6 +42,15 @@ impl Def {
 
     /// Load `<defs>/<name>.toml`.
     pub fn load(defs: &Path, name: &str) -> Result<Self> {
+        // The name becomes a file and folder name, so it must not contain a path.
+        let plain = !name.is_empty()
+            && !name.starts_with('.')
+            && name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b));
+        if !plain {
+            bail!("`{name}` is not a valid package name");
+        }
         let file = defs.join(format!("{name}.toml"));
         let text = match std::fs::read_to_string(&file) {
             Ok(text) => text,
@@ -132,6 +141,18 @@ mod tests {
         macos-x86_64  = { file = "jq-macos-amd64", path = "jq" }
         macos-aarch64 = { file = "jq-macos-arm64", path = "jq" }
     "#;
+
+    #[test]
+    fn rejects_names_with_paths() {
+        let dir = tempfile::tempdir().unwrap();
+        for bad in ["../x", "a/b", ".hidden", ""] {
+            let err = Def::load(dir.path(), bad).unwrap_err();
+            assert!(
+                err.to_string().contains("not a valid package name"),
+                "{bad}"
+            );
+        }
+    }
 
     #[test]
     fn parses_a_definition() {
