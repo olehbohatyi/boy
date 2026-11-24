@@ -49,8 +49,9 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));
-    github::download(&github::download_url(&def.repo, &tag, &file), &part)?;
-    if let Err(e) = check_sums(home, &def, &tag, &version, &file, &part) {
+    let fetched = github::download(&github::download_url(&def.repo, &tag, &file), &part)
+        .and_then(|()| check_sums(home, &def, &tag, &version, &file, &part));
+    if let Err(e) = fetched {
         let _ = std::fs::remove_file(&part);
         return Err(e);
     }
@@ -116,11 +117,16 @@ fn stage_release(
     } else {
         archive::extract(part, kind, stage)?;
     }
+    let root = stage.canonicalize()?;
     for bin in bins {
-        let path = stage.join(bin_path(exe, bin, bins.len()));
+        let rel = bin_path(exe, bin, bins.len());
+        let path = stage.join(&rel);
         if !path.is_file() {
-            let rel = path.strip_prefix(stage).unwrap_or(&path);
             bail!("`{}` is not in `{file}` (check `path`)", rel.display());
+        }
+        // A command may be a symlink inside the release, but never to a file outside it.
+        if !path.canonicalize()?.starts_with(&root) {
+            bail!("`{}` in `{file}` points outside the package", rel.display());
         }
         make_executable(&path)?;
     }
@@ -221,6 +227,31 @@ mod tests {
         assert!(safe_relative("../jq").is_err());
         assert!(safe_relative("/usr/bin/jq").is_err());
         assert!(safe_relative("").is_err());
+    }
+
+    #[test]
+    fn staging_refuses_a_command_that_points_outside_the_package() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = dir.path().join("outside");
+        std::fs::write(&outside, "x").unwrap();
+        // A release whose `jq` is a symlink to a file outside the package.
+        let tarball = dir.path().join("a.tar.gz");
+        let enc = flate2::write::GzEncoder::new(
+            std::fs::File::create(&tarball).unwrap(),
+            Default::default(),
+        );
+        let mut tar = tar::Builder::new(enc);
+        let mut h = tar::Header::new_gnu();
+        h.set_entry_type(tar::EntryType::Symlink);
+        h.set_size(0);
+        tar.append_link(&mut h, "jq", &outside).unwrap();
+        tar.into_inner().unwrap().finish().unwrap();
+
+        let stage = dir.path().join("stage");
+        let bins = vec!["jq".to_string()];
+        let err =
+            stage_release(&tarball, Kind::TarGz, &stage, Path::new("jq"), &bins, "f").unwrap_err();
+        assert!(err.to_string().contains("outside"), "{err}");
     }
 
     #[test]
