@@ -8,6 +8,7 @@ use crate::defs::{self, Def};
 use crate::github;
 use crate::home::Home;
 use crate::lock::{Entry, Lock};
+use crate::sums;
 
 pub fn install(home: &Home, name: &str) -> Result<()> {
     home.ensure()?;
@@ -47,6 +48,10 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));
     github::download(&github::download_url(&def.repo, &tag, &file), &part)?;
+    if let Err(e) = check_sums(home, &def, &tag, &version, &file, &part) {
+        let _ = std::fs::remove_file(&part);
+        return Err(e);
+    }
 
     let pkg_dir = home.pkgs().join(name).join(&version);
     if pkg_dir.exists() {
@@ -80,6 +85,34 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
 
     println!("installed {name} {version}");
     Ok(())
+}
+
+/// Verify the download against `sums`, or warn when the definition has none.
+fn check_sums(
+    home: &Home,
+    def: &Def,
+    tag: &str,
+    version: &str,
+    file: &str,
+    part: &Path,
+) -> Result<()> {
+    let Some(sums) = &def.sums else {
+        eprintln!(
+            "warning: `{}` has no checksum file; installing unverified",
+            def.name
+        );
+        return Ok(());
+    };
+    let sums_file = defs::expand(sums, version);
+    let sums_path = home.temp().join(format!("{}-{version}.sums", def.name));
+    github::download(
+        &github::download_url(&def.repo, tag, &sums_file),
+        &sums_path,
+    )?;
+    let text = std::fs::read_to_string(&sums_path);
+    let _ = std::fs::remove_file(&sums_path);
+    let text = text.with_context(|| format!("cannot read `{sums_file}`"))?;
+    sums::verify(part, &text, file)
 }
 
 /// With one command, `path` is the executable. With several, they sit next to it.

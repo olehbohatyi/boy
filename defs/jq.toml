@@ -3,6 +3,7 @@ from = "github"
 repo = "jqlang/jq"
 tags = "jq-{version}"
 bins = ["jq"]
+sums = "sha256sum.txt"
 
 [plat]
 macos-x86_64  = { file = "jq-macos-amd64", path = "jq" }

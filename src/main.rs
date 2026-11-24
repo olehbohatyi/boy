@@ -3,6 +3,7 @@ mod github;
 mod home;
 mod install;
 mod lock;
+mod sums;
 
 use std::process::ExitCode;
 

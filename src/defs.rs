@@ -15,7 +15,6 @@ pub struct Def {
     #[serde(default = "default_tags")]
     pub tags: String,
     pub bins: Vec<String>,
-    #[allow(dead_code, reason = "checksums arrive in OLE-7")]
     pub sums: Option<String>,
     pub plat: BTreeMap<String, Plat>,
 }
