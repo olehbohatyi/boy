@@ -12,7 +12,11 @@ use crate::lock::{Entry, Lock};
 use crate::registry;
 use crate::sums;
 
-pub fn install(home: &Home, name: &str) -> Result<()> {
+/// Install the latest release of `name`, or with `pin` that exact version, pinned.
+pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
+    if let Some(version) = pin {
+        defs::check_version(version)?;
+    }
     home.ensure()?;
     // Not in the local copy: the registry may have it by now.
     let def = match Def::find(&home.defs(), name)? {
@@ -32,22 +36,52 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
     let plat = def.current_plat()?;
 
     let mut lock = Lock::load(&home.lock())?;
-    if let Some(entry) = lock.pkgs.get(name) {
-        println!("{name} {} is already installed", entry.version);
+    if let Some(entry) = lock.pkgs.get_mut(name) {
+        match pin {
+            Some(version) if version == entry.version => {
+                if entry.pinned {
+                    println!("{name} {version} is already installed and pinned");
+                } else {
+                    entry.pinned = true;
+                    lock.save(&home.lock())?;
+                    println!("pinned {name} {version}");
+                }
+            }
+            Some(_) => bail!(
+                "{name} {} is installed; remove it first with `boy r {name}`",
+                entry.version
+            ),
+            None => println!("{name} {} is already installed", entry.version),
+        }
         return Ok(());
     }
 
-    let tag = github::latest_tag(&def.repo)?;
-    let version = def
-        .tag_pattern()
-        .version(&tag)
-        .with_context(|| {
-            format!(
-                "latest tag `{tag}` does not match `tags = \"{}\"`",
-                def.tags
-            )
-        })?
-        .to_string();
+    let (tag, version) = match pin {
+        Some(version) => {
+            let tag = def.tag_pattern().tag(version);
+            if !github::tag_exists(&def.repo, &tag)? {
+                bail!(
+                    "`{name}` has no release {version} (no tag `{tag}` in {})",
+                    def.repo
+                );
+            }
+            (tag, version.to_string())
+        }
+        None => {
+            let tag = github::latest_tag(&def.repo)?;
+            let version = def
+                .tag_pattern()
+                .version(&tag)
+                .with_context(|| {
+                    format!(
+                        "latest tag `{tag}` does not match `tags = \"{}\"`",
+                        def.tags
+                    )
+                })?
+                .to_string();
+            (tag, version)
+        }
+    };
 
     let file = defs::expand(&plat.file, &version);
     let exe = safe_relative(&defs::expand(&plat.path, &version))?;
@@ -95,14 +129,15 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
         name.to_string(),
         Entry {
             version: version.clone(),
-            pinned: false,
+            pinned: pin.is_some(),
             file,
             bins: def.bins.clone(),
         },
     );
     lock.save(&home.lock())?;
 
-    println!("installed {name} {version}");
+    let pinned = if pin.is_some() { " (pinned)" } else { "" };
+    println!("installed {name} {version}{pinned}");
     Ok(())
 }
 
@@ -220,10 +255,28 @@ mod tests {
     fn installs_on_a_clean_home_by_fetching_the_registry() {
         let dir = tempfile::tempdir().unwrap();
         let home = Home::at(dir.path());
-        install(&home, "jq").unwrap();
+        install(&home, "jq", None).unwrap();
         assert!(home.defs().join("jq.toml").exists());
         assert!(home.bins().join("jq").exists());
         assert!(Lock::load(&home.lock()).unwrap().pkgs.contains_key("jq"));
+    }
+
+    /// Hits the network; run with `cargo test -- --ignored`.
+    #[test]
+    #[ignore]
+    fn installs_and_pins_a_given_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = Home::at(dir.path());
+        install(&home, "jq", Some("1.7.1")).unwrap();
+        let entry = Lock::load(&home.lock()).unwrap().pkgs["jq"].clone();
+        assert_eq!((entry.version.as_str(), entry.pinned), ("1.7.1", true));
+        assert!(home.pkgs().join("jq").join("1.7.1").join("jq").exists());
+
+        // Another version while one is installed is refused; a missing one is explained.
+        assert!(install(&home, "jq", Some("1.8.2")).is_err());
+        crate::remove::remove(&home, "jq").unwrap();
+        let err = install(&home, "jq", Some("0.0.0")).unwrap_err();
+        assert!(err.to_string().contains("no release 0.0.0"), "{err}");
     }
 
     #[test]
