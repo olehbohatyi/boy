@@ -1,0 +1,215 @@
+# boy: Product Requirements Document
+
+Working name until now: gpm. New name: boy (the initials of the author's full name).
+
+## 1. Problem
+
+My macOS is old. Homebrew no longer supports it, parts of the developer tools are outdated, and the system cannot be upgraded. Installing command-line programs turns into a fight with dependencies, compilation and documentation. I need a tool that simply installs prebuilt binaries.
+
+## 2. Goal
+
+Build a personal package manager, boy, that is convenient for me and works on everything I own. This is infrastructure built for myself: if a decision is convenient for me, it is the right decision. The project is open source, but the primary user is me.
+
+The user types `boy i jq` and never needs to know where the program comes from or how it is packaged. That knowledge lives in boy's own curated registry.
+
+## 3. Principles
+
+- KISS: simple enough that I never need to open the documentation. Running `boy` with no arguments prints the five commands.
+- Prebuilt binaries only: no compilation on the user's machine, no Xcode, no Command Line Tools.
+- Curated, not guessed: every supported program has a hand-written definition that has been tested. No heuristics for picking files.
+- Short commands: a single letter, no dashes and no flags wherever possible.
+- Four-letter names: folders, files and definition keys use four-letter names (`bins`, `pkgs`, `defs`, `repo`, `tags`...), so everything looks the same.
+- Portable: the whole boy folder can be moved and keeps working.
+- One self-contained binary with no runtime and no dependencies beyond the OS itself.
+- No accounts, no tokens, no API keys.
+
+## 4. Platforms
+
+| Version | OS | Targets | Testing |
+|---|---|---|---|
+| v1 | macOS 13+ Intel | `x86_64-apple-darwin` | By hand on my Mac (macOS 13.7, Intel) |
+| v1 | macOS 13+ Apple Silicon | `aarch64-apple-darwin` | CI on an arm64 macOS runner |
+| v1.1 | Linux | `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` | Docker containers |
+| later | Windows | `x86_64-pc-windows-msvc` | To be decided |
+
+boy itself is built with a low `MACOSX_DEPLOYMENT_TARGET` (10.12 for Intel, 11.0 for Apple Silicon) so it never becomes the thing that fails on an old system. Binaries are built in CI and published in GitHub Releases.
+
+## 5. Folder Layout
+
+```
+~/.boy/
+  bins/       relative symlinks to executables; the only folder added to PATH
+  pkgs/       full extracted releases: pkgs/<name>/<version>/
+  defs/       local cache of the registry: defs/<name>.toml
+  temp/       downloads in progress
+  conf.toml   boy settings
+  lock.toml   installed packages
+```
+
+- Every release is kept whole in `pkgs/<name>/<version>/`, so tools that need files next to the binary (for example a `runtime/` folder) work.
+- `bins/` holds **relative** symlinks, for example `bins/jq -> ../pkgs/jq/1.8.2/jq`. Together with the next rule, this makes the whole folder portable.
+- boy finds its home from the location of its own binary (`<home>/bins/boy`), not from a hard-coded path. `BOY_HOME` can override this.
+- The default location on first install is `~/.boy`.
+- `lock.toml` records, for each package: name, version, whether it is pinned, the release file it came from, and the symlinks it created.
+
+## 6. Registry
+
+### 6.1 Where it lives
+
+- The registry is the `defs/` folder in the boy repository, one TOML file per program, named after the program: `defs/jq.toml`.
+- boy keeps a local copy in `<home>/defs/`. It refreshes the copy during `boy u`, and during `boy i` when the requested program is not in the local copy.
+- Adding a program to the registry is one commit. It does not need a new boy release.
+- Every program in the registry is tested before it is added. That review also guarantees that no two programs provide the same command.
+
+### 6.2 Definition format
+
+All keys have four letters.
+
+| Key | Required | Meaning |
+|---|---|---|
+| `name` | yes | Program name, used in `boy i <name>`. Matches the file name. |
+| `from` | yes | Source type. Selects the implementation that fetches it. v1 supports only `github`. |
+| `repo` | yes | Where the program lives in that source, for example `jqlang/jq`. |
+| `tags` | no | Release tag pattern. Default `v{version}`. |
+| `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. |
+| `sums` | no | Name of the checksum file in the release, for example `SHA256SUMS`. May contain `{version}`. |
+| `[plat]` | yes | One entry per supported platform: `file` is the release file name, `path` is the executable inside the archive (or the name to save a bare binary as). |
+
+`{version}` is the version without the tag's prefix. Platform keys in v1 are `macos-x86_64` and `macos-aarch64`. If the current platform has no entry, boy says the program is not available for this system and stops.
+
+Example: a bare binary with a tag prefix and a checksum file.
+
+```toml
+name = "jq"
+from = "github"
+repo = "jqlang/jq"
+tags = "jq-{version}"
+bins = ["jq"]
+sums = "sha256sum.txt"
+
+[plat]
+macos-x86_64  = { file = "jq-macos-amd64", path = "jq" }
+macos-aarch64 = { file = "jq-macos-arm64", path = "jq" }
+```
+
+Example: an archive with the binary in a subfolder and no checksum file.
+
+```toml
+name = "hyperfine"
+from = "github"
+repo = "sharkdp/hyperfine"
+bins = ["hyperfine"]
+
+[plat]
+macos-x86_64  = { file = "hyperfine-v{version}-x86_64-apple-darwin.tar.gz", path = "hyperfine-v{version}-x86_64-apple-darwin/hyperfine" }
+macos-aarch64 = { file = "hyperfine-v{version}-aarch64-apple-darwin.tar.gz", path = "hyperfine-v{version}-aarch64-apple-darwin/hyperfine" }
+```
+
+Supported file formats: `.tar.gz`, `.tgz`, `.tar.xz`, `.zip`, and bare binaries.
+
+### 6.3 Sources
+
+`from` is the extension point. Each source is a separate implementation behind one interface: find the latest version, build the download URL, download. v1 implements `github` only. Later sources (for example my own server) are added as new implementations without changing definitions that use `github`.
+
+## 7. Network: the github Source
+
+boy uses no GitHub API and no tokens. It only follows public links.
+
+- **Latest version:** request `https://github.com/<repo>/releases/latest`. GitHub answers with a redirect to `/releases/tag/<tag>`. boy reads the tag from the redirect and extracts `{version}` using the `tags` pattern.
+- **Download:** `https://github.com/<repo>/releases/download/<tag>/<file>`.
+- **Checksum:** if `sums` is set, boy downloads that file from the same release and checks the SHA-256 of the downloaded file against it. On a mismatch boy refuses to install. If `sums` is not set, boy installs and prints a warning.
+
+Because none of this goes through the API, there is no rate limit to worry about, however many packages are installed.
+
+## 8. Version 1 Commands
+
+| Command | Behavior |
+|---|---|
+| `boy i <name>` | Install the latest version and record it in `lock.toml`. |
+| `boy i <name>@<version>` | Install that exact version and mark it as pinned. |
+| `boy r <name>` | Remove the package folder and its symlinks, and drop it from `lock.toml`. |
+| `boy l` | List installed packages with their versions, marking pinned ones. |
+| `boy s <query>` | Search the local registry copy by name, description and commands. No network. |
+| `boy u` | Refresh the registry, update every package that is not pinned, then clean up. |
+| `boy u <name>` | Update one package. This also unpins it. |
+
+`boy u` does three steps: refresh the registry, upgrade the packages, clear old versions. Upgrading extracts the new version next to the old one and switches the symlinks. At the end boy asks one question for everything it updated:
+
+```
+updated: jq 1.7.1 -> 1.8.2, just 1.58.0 -> 1.59.0
+remove old versions (jq 1.7.1, just 1.58.0)? [Y/n]
+```
+
+Answering `n` keeps the old versions, and the next `boy u` asks again.
+
+## 9. Install and Self-Update
+
+- **First install:** `curl -fsSL <url>/install.sh | sh` downloads boy, creates `~/.boy`, runs `boy i boy` so boy records itself in `lock.toml`, and then offers to add `~/.boy/bins` to PATH. A manual download from the releases page works too.
+- **PATH:** boy itself never edits shell startup files. If `bins/` is not on PATH, boy prints the one line to add.
+- **Self-update:** boy is in its own registry (`defs/boy.toml`). `boy u` updates it like any other package: the new version is extracted into `pkgs/boy/<version>/` and the `bins/boy` symlink is switched. This is safe on macOS even while boy is running.
+
+## 10. Language and Stack
+
+Rust, written from scratch. gpm contributes lessons only (configurable install location, binary-only scope), no code.
+
+- HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the old system's root certificates. Redirects must be readable, not only followed.
+- Archives: `flate2` + `tar`, `xz2` or `lzma-rs`, `zip`.
+- Definitions and state: `serde` + `toml`.
+- Checksums: `sha2`.
+
+## 11. Utility Family
+
+On top of boy I will build my own console utilities: my own cd, my own grep, and others. Rules for every utility:
+
+- Lives in its own repository.
+- Publishes releases with prebuilt binaries for all supported platforms, built by the same CI workflow as boy.
+- Gets a definition in the registry and installs through boy like any other package.
+
+The utilities themselves are not part of boy version 1.
+
+## 12. Out of Scope for Version 1
+
+- Linux (v1.1) and Windows (later).
+- Building packages from source.
+- Dependency management between packages.
+- Sources other than `github`.
+- GitHub API access and tokens.
+- Guessing release files without a definition.
+- Checking whether a downloaded binary supports the running macOS version. Testing each program before adding it to the registry covers this for now.
+- Rollback as a separate command (`boy i <name>@<version>` covers it).
+- The utility family (cd, grep and so on).
+
+## 13. Test Programs
+
+None of these are installed on my Mac, and each one tests a different case.
+
+| Program | Tag | macOS file (Intel) | Tests |
+|---|---|---|---|
+| jq | `jq-1.8.2` | `jq-macos-amd64` | Bare binary, tag prefix, no version in the file name, `sha256sum.txt` |
+| just | `1.59.0` | `just-1.59.0-x86_64-apple-darwin.tar.gz` | Plain `tar.gz`, tag without `v`, `SHA256SUMS` |
+| hyperfine | `v2.0.0` | `hyperfine-v2.0.0-x86_64-apple-darwin.tar.gz` | `v` in the tag and the file name, binary in a subfolder, no checksum file |
+| fzf | `v0.75.0` | `fzf-0.75.0-darwin_amd64.tar.gz` | `v` in the tag only, different platform naming, `{version}` in the checksum file name |
+| helix | `25.07.1` | `helix-25.07.1-x86_64-macos.tar.xz` | `tar.xz`, needs `runtime/` next to the binary (whole-release storage plus symlink) |
+| ripgrep-all | `v0.10.10` | `ripgrep_all-v0.10.10-x86_64-apple-darwin.tar.gz` | Several commands in one package |
+| delta | `0.22.0` | none (Apple Silicon only) | "Not available for this system" |
+
+The archive layouts are confirmed when each definition is written.
+
+## 14. Definition of Done for Version 1
+
+- `boy i`, `boy u` and `boy r` work on macOS 13 Intel for jq, then just, then hyperfine, in that order.
+- `boy l` and `boy s` work against those three.
+- `boy u` updates boy itself.
+- `install.sh` installs boy from a release on a clean macOS 13.
+- CI builds and publishes boy's release binaries for `x86_64-apple-darwin` and `aarch64-apple-darwin`.
+
+After v1, fzf, helix, ripgrep-all and delta are added to the registry one at a time. Each breaks one assumption of the first three.
+
+## 15. Open Questions
+
+- The output format of `boy l` and `boy s`.
+- Where `install.sh` is served from (raw file in the boy repository or a release asset).
+
+## 16. Workflow
+
+This file (`docs/prd.md`) is the master copy of the PRD. A Linear project holds the PRD, and tasks are sliced inside that project by Claude Code through the Linear MCP connection.

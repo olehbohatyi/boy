@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            min_macos: "10.12"
+          - target: aarch64-apple-darwin
+            runner: macos-15
+            min_macos: "11.0"
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.min_macos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Test
+        run: cargo test --target ${{ matrix.target }}
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Check the binary runs and its minimum macOS
+        run: |
+          bin=target/${{ matrix.target }}/release/boy
+          "$bin"
+          vtool -show-build "$bin"
+          vtool -show-build "$bin" | grep -Eq "(minos|version) ${{ matrix.min_macos }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boy-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/boy

@@ -1,0 +1,13 @@
+[package]
+name = "boy"
+version = "0.1.0"
+edition = "2024"
+description = "A personal package manager for prebuilt binaries"
+publish = false
+
+[dependencies]
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
