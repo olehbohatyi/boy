@@ -4,6 +4,7 @@ use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 
+use crate::archive::{self, Kind};
 use crate::defs::{self, Def};
 use crate::github;
 use crate::home::Home;
@@ -41,8 +42,9 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
 
     let file = defs::expand(&plat.file, &version);
     let exe = safe_relative(&defs::expand(&plat.path, &version))?;
-    if is_archive(&file) {
-        bail!("`{file}` is an archive; archives are not supported yet");
+    let kind = Kind::of(&file);
+    if kind == Kind::TarXz {
+        bail!("`{file}`: .tar.xz files are not supported yet");
     }
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
@@ -53,15 +55,22 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
         return Err(e);
     }
 
+    // Unpack into a staging folder in temp/, then move it into pkgs/ in one step.
+    let stage = home.temp().join(format!("{name}-{version}.d"));
+    let staged = stage_release(&part, kind, &stage, &exe, &def.bins, &file);
+    let _ = std::fs::remove_file(&part);
+    if let Err(e) = staged {
+        let _ = std::fs::remove_dir_all(&stage);
+        return Err(e);
+    }
+
     let pkg_dir = home.pkgs().join(name).join(&version);
     if pkg_dir.exists() {
         std::fs::remove_dir_all(&pkg_dir)?;
     }
-    let dest = pkg_dir.join(&exe);
-    std::fs::create_dir_all(dest.parent().expect("inside pkg_dir"))?;
-    std::fs::rename(&part, &dest)
-        .with_context(|| format!("cannot move into {}", dest.display()))?;
-    make_executable(&dest)?;
+    std::fs::create_dir_all(home.pkgs().join(name))?;
+    std::fs::rename(&stage, &pkg_dir)
+        .with_context(|| format!("cannot move into {}", pkg_dir.display()))?;
 
     for bin in &def.bins {
         let target = Path::new("..")
@@ -84,6 +93,37 @@ pub fn install(home: &Home, name: &str) -> Result<()> {
     lock.save(&home.lock())?;
 
     println!("installed {name} {version}");
+    Ok(())
+}
+
+/// Put the release into `stage` and check every command is where the definition says.
+fn stage_release(
+    part: &Path,
+    kind: Kind,
+    stage: &Path,
+    exe: &Path,
+    bins: &[String],
+    file: &str,
+) -> Result<()> {
+    if stage.exists() {
+        std::fs::remove_dir_all(stage)?;
+    }
+    std::fs::create_dir_all(stage)?;
+    if kind == Kind::Bare {
+        let dest = stage.join(exe);
+        std::fs::create_dir_all(dest.parent().expect("inside stage"))?;
+        std::fs::copy(part, &dest)?;
+    } else {
+        archive::extract(part, kind, stage)?;
+    }
+    for bin in bins {
+        let path = stage.join(bin_path(exe, bin, bins.len()));
+        if !path.is_file() {
+            let rel = path.strip_prefix(stage).unwrap_or(&path);
+            bail!("`{}` is not in `{file}` (check `path`)", rel.display());
+        }
+        make_executable(&path)?;
+    }
     Ok(())
 }
 
@@ -134,12 +174,6 @@ fn safe_relative(path: &str) -> Result<PathBuf> {
     Ok(p)
 }
 
-fn is_archive(file: &str) -> bool {
-    [".tar.gz", ".tgz", ".tar.xz", ".zip"]
-        .iter()
-        .any(|ext| file.ends_with(ext))
-}
-
 fn make_executable(path: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
@@ -187,12 +221,6 @@ mod tests {
         assert!(safe_relative("../jq").is_err());
         assert!(safe_relative("/usr/bin/jq").is_err());
         assert!(safe_relative("").is_err());
-    }
-
-    #[test]
-    fn detects_archives() {
-        assert!(is_archive("x.tar.gz"));
-        assert!(!is_archive("jq-macos-amd64"));
     }
 
     #[test]
