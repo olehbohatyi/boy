@@ -4,7 +4,7 @@ Working name until now: gpm. New name: boy (the initials of the author's full na
 
 ## 1. Problem
 
-My macOS is old. Homebrew no longer supports it, parts of the developer tools are outdated, and the system cannot be upgraded. Installing command-line programs turns into a fight with dependencies, compilation and documentation. I need a tool that simply installs prebuilt binaries.
+Installing command-line programs often turns into a fight with dependencies, compilation and documentation. I need a tool that simply installs prebuilt binaries.
 
 ## 2. Goal
 
@@ -32,7 +32,7 @@ The user types `boy i jq` and never needs to know where the program comes from o
 | v1.1 | Linux | `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl` | Docker containers |
 | later | Windows | `x86_64-pc-windows-msvc` | To be decided |
 
-boy itself is built with a low `MACOSX_DEPLOYMENT_TARGET` (10.12 for Intel, 11.0 for Apple Silicon) so it never becomes the thing that fails on an old system. Binaries are built in CI and published in GitHub Releases.
+boy itself is built with a low `MACOSX_DEPLOYMENT_TARGET` (10.12 for Intel, 11.0 for Apple Silicon). Binaries are built in CI and published in GitHub Releases.
 
 ## 5. Folder Layout
 
@@ -152,7 +152,7 @@ Answering `n` keeps the old versions, and the next `boy u` asks again.
 
 Rust, written from scratch. gpm contributes lessons only (configurable install location, binary-only scope), no code.
 
-- HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the old system's root certificates. Redirects must be readable, not only followed.
+- HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the system root certificates. Redirects must be readable, not only followed.
 - Archives: `flate2` + `tar`, `xz2` or `lzma-rs`, `zip`.
 - Definitions and state: `serde` + `toml`.
 - Checksums: `sha2`.

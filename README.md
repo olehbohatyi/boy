@@ -1,6 +1,6 @@
 # boy
 
-A personal package manager for prebuilt binaries, built for old macOS where Homebrew no longer works.
+A personal package manager for prebuilt binaries.
 
 ```
 boy i <name>[@version]  install
