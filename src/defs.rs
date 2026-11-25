@@ -262,6 +262,33 @@ mod tests {
         );
     }
 
+    /// helix: no `v` in the tag, `.tar.xz`, the binary inside a versioned folder.
+    #[test]
+    fn helix_definition_expands_tag_and_paths() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "helix").unwrap();
+        assert_eq!(def.tag_pattern().tag("25.07.1"), "25.07.1");
+        let intel = &def.plat["macos-x86_64"];
+        assert_eq!(
+            expand(&intel.file, "25.07.1"),
+            "helix-25.07.1-x86_64-macos.tar.xz"
+        );
+        assert_eq!(
+            expand(&intel.path, "25.07.1"),
+            "helix-25.07.1-x86_64-macos/hx"
+        );
+        let arm = &def.plat["macos-aarch64"];
+        assert_eq!(
+            expand(&arm.file, "25.07.1"),
+            "helix-25.07.1-aarch64-macos.tar.xz"
+        );
+        assert_eq!(
+            expand(&arm.path, "25.07.1"),
+            "helix-25.07.1-aarch64-macos/hx"
+        );
+        assert!(def.sums.is_none(), "helix publishes no checksum file");
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(

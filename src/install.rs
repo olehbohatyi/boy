@@ -295,6 +295,28 @@ mod tests {
         assert!(Lock::load(&home.lock()).unwrap().pkgs.contains_key("jq"));
     }
 
+    /// Hits the network (16 MB); run with `cargo test -- --ignored`.
+    /// A real `.tar.xz` release, with `runtime/` kept next to the binary.
+    #[test]
+    #[ignore]
+    fn installs_helix_from_tar_xz_with_its_runtime() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = Home::at(dir.path());
+        home.ensure().unwrap();
+        let repo_defs = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        std::fs::copy(repo_defs.join("helix.toml"), home.defs().join("helix.toml")).unwrap();
+
+        install(&home, "helix", Some("25.07.1")).unwrap();
+
+        let link = home.bins().join("hx");
+        let target = std::fs::read_link(&link).unwrap();
+        assert!(target.starts_with("../pkgs/helix/25.07.1"), "{target:?}");
+        let real = std::fs::canonicalize(&link).unwrap();
+        assert!(real.parent().unwrap().join("runtime/themes").is_dir());
+        assert!(real.parent().unwrap().join("runtime/queries").is_dir());
+        assert_eq!(std::fs::read_dir(home.temp()).unwrap().count(), 0);
+    }
+
     /// Hits the network; run with `cargo test -- --ignored`.
     #[test]
     #[ignore]
