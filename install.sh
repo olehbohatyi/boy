@@ -106,12 +106,13 @@ main() {
     base="https://github.com/$repo/releases/download/$tag"
 
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' EXIT INT TERM
+    trap 'rm -rf "$tmp"' EXIT
+    trap 'exit 130' INT TERM # stop here; the EXIT trap still cleans up
 
     say "downloading boy $version ($target)"
     curl -fsSL -o "$tmp/$file" "$base/$file" || fail "cannot download $base/$file"
     curl -fsSL -o "$tmp/SHA256SUMS" "$base/SHA256SUMS" || fail "cannot download $base/SHA256SUMS"
-    (cd "$tmp" && awk -v f="$file" '$2 == f' SHA256SUMS | grep . | shasum -a 256 -c -s) ||
+    (cd "$tmp" && awk -v f="$file" '$2 == f || $2 == "*" f' SHA256SUMS | grep . | shasum -a 256 -c -s) ||
         fail "checksum of $file does not match SHA256SUMS; try again later"
     tar -xzf "$tmp/$file" -C "$tmp" boy || fail "cannot unpack $file"
 
