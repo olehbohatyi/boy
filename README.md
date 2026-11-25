@@ -2,6 +2,10 @@
 
 A personal package manager for prebuilt binaries.
 
+```sh
+curl -fsSL https://raw.githubusercontent.com/olehbohatyi/boy/main/install.sh | sh
+```
+
 ```
 boy i <name>[@version]  install
 boy r <name>            remove

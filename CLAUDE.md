@@ -25,6 +25,7 @@ cargo test -- --ignored   # tests that hit the network
 - `src/registry.rs`: the local registry copy, refreshed from this repository's archive by direct link.
 - `src/install.rs`, `src/list.rs`, `src/remove.rs`, `src/search.rs`, `src/update.rs`: commands.
 - `defs/`: the registry, one TOML file per program.
+- `install.sh`: the first install (POSIX sh), served raw from `main`; it is the only place that may touch a shell startup file, and only after the user says yes.
 
 ## Rules
 
