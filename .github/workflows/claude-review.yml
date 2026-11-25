@@ -40,8 +40,13 @@ jobs:
             BASE BRANCH: ${{ github.base_ref }}
 
             Review this pull request. The PR branch is checked out in the working directory.
-            Read CLAUDE.md first (project rules) and the parts of docs/prd.md the change touches;
-            hold the change to both.
+
+            Before you conclude anything, read with the Read tool:
+            1. CLAUDE.md (project rules);
+            2. the sections of docs/prd.md the change touches;
+            3. every file the PR changes, in full (not only the diff hunks), and the callers of
+               any function whose behaviour changes (find them with Grep).
+            Hold the change to CLAUDE.md and the PRD.
 
             Review ONLY what this PR changes. Get the change with `gh pr diff ${{ github.event.pull_request.number }}`
             (or `git diff origin/${{ github.base_ref }}...HEAD`): lines starting with `+` are added by
@@ -65,8 +70,13 @@ jobs:
             the build). Skip praise and restating the diff.
 
             Use `mcp__github_inline_comment__create_inline_comment` (with `confirmed: true`) for
-            issues tied to specific lines, and `gh pr comment` for one short summary. If you find
-            nothing worth changing, say so in one line.
+            issues tied to specific lines.
+
+            Your final message is NOT shown to anyone. The only way the author sees your review is
+            a PR comment, so ALWAYS finish by posting exactly one summary with
+            `gh pr comment ${{ github.event.pull_request.number }} --body "..."`, even when you
+            found nothing: then the body is one line, "No issues found." followed by what you
+            checked (for example "Checked install.rs, update.rs against CLAUDE.md and PRD §8.").
           claude_args: |
             --model claude-sonnet-5-5
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*),Read,Grep,Glob"
