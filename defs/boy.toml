@@ -1,0 +1,10 @@
+name = "boy"
+info = "Package manager for prebuilt binaries"
+from = "github"
+repo = "olehbohatyi/boy"
+bins = ["boy"]
+sums = "SHA256SUMS"
+
+[plat]
+macos-x86_64  = { file = "boy-{version}-x86_64-apple-darwin.tar.gz", path = "boy" }
+macos-aarch64 = { file = "boy-{version}-aarch64-apple-darwin.tar.gz", path = "boy" }

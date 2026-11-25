@@ -164,7 +164,7 @@ Answering `n` keeps the old versions, and the next `boy u` asks again. An empty 
 
 - **First install:** `curl -fsSL <url>/install.sh | sh` downloads boy, creates `~/.boy`, runs `boy i boy` so boy records itself in `lock.toml`, and then offers to add `~/.boy/bins` to PATH. A manual download from the releases page works too.
 - **PATH:** boy itself never edits shell startup files. If `bins/` is not on PATH, boy prints the one line to add.
-- **Self-update:** boy is in its own registry (`defs/boy.toml`). `boy u` updates it like any other package: the new version is extracted into `pkgs/boy/<version>/` and the `bins/boy` symlink is switched. This is safe on macOS even while boy is running.
+- **Self-update:** boy is in its own registry (`defs/boy.toml`). Releases come from `.github/workflows/release.yml`: pushing a tag `v<version>` that matches `Cargo.toml` builds both macOS targets and publishes `boy-<version>-<target>.tar.gz` (binary at the archive root) and `SHA256SUMS`. Every utility in the family copies this workflow. `boy u` updates it like any other package: the new version is extracted into `pkgs/boy/<version>/` and the `bins/boy` symlink is switched. This is safe on macOS even while boy is running.
 
 ## 10. Language and Stack
 
