@@ -33,7 +33,8 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
             def.from
         );
     }
-    let plat = def.current_plat()?;
+    // Fail early, before any network, when this system has no release file.
+    def.current_plat()?;
 
     let mut lock = Lock::load(&home.lock())?;
     // With another version installed, `name@version` switches to it (the rollback path).
@@ -69,24 +70,45 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
             }
             (tag, version.to_string())
         }
-        None => {
-            let tag = github::latest_tag(&def.repo)?;
-            let version = def
-                .tag_pattern()
-                .version(&tag)
-                .with_context(|| {
-                    format!(
-                        "latest tag `{tag}` does not match `tags = \"{}\"`",
-                        def.tags
-                    )
-                })?
-                .to_string();
-            (tag, version)
-        }
+        None => latest(&def)?,
     };
 
-    let file = defs::expand(&plat.file, &version);
-    let exe = safe_relative(&defs::expand(&plat.path, &version))?;
+    put_version(home, &def, &tag, &version, pin.is_some())?;
+
+    let pinned = if pin.is_some() { " (pinned)" } else { "" };
+    match previous {
+        Some(old) => {
+            drop_old_version(home, name, &old, &def.bins);
+            println!("switched {name} {} -> {version}{pinned}", old.version);
+        }
+        None => println!("installed {name} {version}{pinned}"),
+    }
+    Ok(())
+}
+
+/// The latest release as `(tag, version)`.
+pub fn latest(def: &Def) -> Result<(String, String)> {
+    let tag = github::latest_tag(&def.repo)?;
+    let version = def
+        .tag_pattern()
+        .version(&tag)
+        .with_context(|| {
+            format!(
+                "latest tag `{tag}` does not match `tags = \"{}\"`",
+                def.tags
+            )
+        })?
+        .to_string();
+    Ok((tag, version))
+}
+
+/// Download, verify and unpack one version into `pkgs/<name>/<version>/`, point the
+/// links at it and record it in the lock. Other versions in `pkgs/<name>/` stay.
+pub fn put_version(home: &Home, def: &Def, tag: &str, version: &str, pinned: bool) -> Result<()> {
+    let name = def.name.as_str();
+    let plat = def.current_plat()?;
+    let file = defs::expand(&plat.file, version);
+    let exe = safe_relative(&defs::expand(&plat.path, version))?;
     let kind = Kind::of(&file);
     if kind == Kind::TarXz {
         bail!("`{file}`: .tar.xz files are not supported yet");
@@ -94,8 +116,8 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));
-    let fetched = github::download(&github::download_url(&def.repo, &tag, &file), &part)
-        .and_then(|()| check_sums(home, &def, &tag, &version, &file, &part));
+    let fetched = github::download(&github::download_url(&def.repo, tag, &file), &part)
+        .and_then(|()| check_sums(home, def, tag, version, &file, &part));
     if let Err(e) = fetched {
         let _ = std::fs::remove_file(&part);
         return Err(e);
@@ -110,7 +132,7 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
         return Err(e);
     }
 
-    let pkg_dir = home.pkgs().join(name).join(&version);
+    let pkg_dir = home.pkgs().join(name).join(version);
     if pkg_dir.exists() {
         std::fs::remove_dir_all(&pkg_dir)?;
     }
@@ -122,31 +144,22 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
         let target = Path::new("..")
             .join("pkgs")
             .join(name)
-            .join(&version)
+            .join(version)
             .join(bin_path(&exe, bin, def.bins.len()));
         link(&target, &home.bins().join(bin))?;
     }
 
+    let mut lock = Lock::load(&home.lock())?;
     lock.pkgs.insert(
         name.to_string(),
         Entry {
-            version: version.clone(),
-            pinned: pin.is_some(),
+            version: version.to_string(),
+            pinned,
             file,
             bins: def.bins.clone(),
         },
     );
-    lock.save(&home.lock())?;
-
-    let pinned = if pin.is_some() { " (pinned)" } else { "" };
-    match previous {
-        Some(old) => {
-            drop_old_version(home, name, &old, &def.bins);
-            println!("switched {name} {} -> {version}{pinned}", old.version);
-        }
-        None => println!("installed {name} {version}{pinned}"),
-    }
-    Ok(())
+    lock.save(&home.lock())
 }
 
 /// After switching versions: remove the old version's folder and any of its links

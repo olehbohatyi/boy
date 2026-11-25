@@ -158,7 +158,7 @@ updated: jq 1.7.1 -> 1.8.2, just 1.58.0 -> 1.59.0
 remove old versions (jq 1.7.1, just 1.58.0)? [Y/n]
 ```
 
-Answering `n` keeps the old versions, and the next `boy u` asks again.
+Answering `n` keeps the old versions, and the next `boy u` asks again. An empty answer means yes; no answer at all (closed input, for example in a script) keeps them. With nothing newer, boy prints `everything is up to date`. If the registry cannot be fetched, boy warns and checks versions against its local copy. A package that fails to update is reported, the others still update, and `boy u` exits with an error.
 
 ## 9. Install and Self-Update
 
