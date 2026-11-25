@@ -72,7 +72,7 @@ All keys have four letters.
 | `from` | yes | Source type. Selects the implementation that fetches it. v1 supports only `github`. |
 | `repo` | yes | Where the program lives in that source, for example `jqlang/jq`. |
 | `tags` | no | Release tag pattern. Default `v{version}`. |
-| `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. |
+| `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. With several commands, each is found in the same folder as `path`. |
 | `sums` | no | Name of the checksum file in the release, for example `SHA256SUMS`. May contain `{version}`. |
 | `[plat]` | yes | One entry per supported platform: `file` is the release file name, `path` is the executable inside the archive (or the name to save a bare binary as). |
 
