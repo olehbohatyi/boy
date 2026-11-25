@@ -41,7 +41,18 @@ jobs:
           "$bin"
           vtool -show-build "$bin"
           vtool -show-build "$bin" | grep -Eq "(minos|version) ${{ matrix.min_macos }}"
+      - name: Install with install.sh (latest published release)
+        run: |
+          BOY_HOME="$RUNNER_TEMP/boy" sh install.sh </dev/null
+          "$RUNNER_TEMP/boy/bins/boy" l | grep -q '^boy '
       - uses: actions/upload-artifact@v4
         with:
           name: boy-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/boy
+
+  install-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck
+        run: shellcheck install.sh

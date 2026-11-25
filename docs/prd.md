@@ -162,7 +162,7 @@ Answering `n` keeps the old versions, and the next `boy u` asks again. An empty 
 
 ## 9. Install and Self-Update
 
-- **First install:** `curl -fsSL <url>/install.sh | sh` downloads boy, creates `~/.boy`, runs `boy i boy` so boy records itself in `lock.toml`, and then offers to add `~/.boy/bins` to PATH. A manual download from the releases page works too.
+- **First install:** `curl -fsSL https://raw.githubusercontent.com/olehbohatyi/boy/main/install.sh | sh`. The script is served as a raw file from `main` of the boy repository, so it always matches the latest code. It downloads the latest release for the Mac's architecture by direct link, checks it against `SHA256SUMS`, and runs `boy i boy` so boy creates `~/.boy` (or `$BOY_HOME`) and records itself in `lock.toml`. Then it offers to add `~/.boy/bins` to PATH: on yes it appends one `export PATH=...` line to `~/.zshrc` (zsh) or `~/.bash_profile` (bash); otherwise, or without a terminal, it prints the line. If boy is already installed, it stops and points to `boy u boy`. A manual download from the releases page works too.
 - **PATH:** boy itself never edits shell startup files. If `bins/` is not on PATH, boy prints the one line to add.
 - **Self-update:** boy is in its own registry (`defs/boy.toml`). Releases come from `.github/workflows/release.yml`: pushing a tag `v<version>` that matches `Cargo.toml` builds both macOS targets and publishes `boy-<version>-<target>.tar.gz` (binary at the archive root) and `SHA256SUMS`. Every utility in the family copies this workflow. `boy u` updates it like any other package: the new version is extracted into `pkgs/boy/<version>/` and the `bins/boy` symlink is switched. This is safe on macOS even while boy is running.
 
@@ -225,7 +225,7 @@ After v1, fzf, helix, ripgrep-all and delta are added to the registry one at a t
 
 ## 15. Open Questions
 
-- Where `install.sh` is served from (raw file in the boy repository or a release asset).
+None at the moment.
 
 ## 16. Workflow
 
