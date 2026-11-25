@@ -1,0 +1,10 @@
+name = "fzf"
+info = "Command-line fuzzy finder"
+from = "github"
+repo = "junegunn/fzf"
+bins = ["fzf"]
+sums = "fzf_{version}_checksums.txt"
+
+[plat]
+macos-x86_64  = { file = "fzf-{version}-darwin_amd64.tar.gz", path = "fzf" }
+macos-aarch64 = { file = "fzf-{version}-darwin_arm64.tar.gz", path = "fzf" }
