@@ -64,9 +64,35 @@ pub fn extract(archive: &Path, kind: Kind, dest: &Path) -> Result<()> {
             }
             Ok(())
         }
-        Kind::TarXz => bail!(".tar.xz files are not supported yet"),
+        Kind::TarXz => {
+            // lzma-rs has no streaming xz reader, so unpack the .tar next to the archive
+            // (inside temp/) and remove it whatever happens.
+            let mut tar_path = archive.as_os_str().to_owned();
+            tar_path.push(".tar");
+            let tar_path = std::path::PathBuf::from(tar_path);
+            let result = unxz(reader, &tar_path).and_then(|()| {
+                let file = File::open(&tar_path)
+                    .with_context(|| format!("cannot read {}", tar_path.display()))?;
+                let mut tar = tar::Archive::new(BufReader::new(file));
+                tar.set_preserve_permissions(true);
+                tar.unpack(dest).context("cannot unpack .tar.xz")
+            });
+            let _ = std::fs::remove_file(&tar_path);
+            result
+        }
         Kind::Bare => bail!("not an archive"),
     }
+}
+
+/// Decompress an xz stream into the file `out`.
+fn unxz(mut reader: impl std::io::BufRead, out: &Path) -> Result<()> {
+    let file = File::create(out).with_context(|| format!("cannot write {}", out.display()))?;
+    let mut writer = std::io::BufWriter::new(file);
+    lzma_rs::xz_decompress(&mut reader, &mut writer)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))
+        .context("cannot unpack .tar.xz; the download may be damaged")?;
+    std::io::Write::flush(&mut writer)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -121,6 +147,68 @@ mod tests {
             .mode();
         assert_eq!(mode & 0o777, 0o755);
         assert_eq!(std::fs::read(dest.join("pkg/README")).unwrap(), b"hi");
+    }
+
+    fn tar_xz(path: &Path, entries: &[(&str, &[u8], u32)]) {
+        let mut tar = tar::Builder::new(Vec::new());
+        for (name, data, mode) in entries {
+            let mut h = tar::Header::new_gnu();
+            h.set_size(data.len() as u64);
+            h.set_mode(*mode);
+            h.set_cksum();
+            tar.append_data(&mut h, name, *data).unwrap();
+        }
+        let raw = tar.into_inner().unwrap();
+        let mut xz = Vec::new();
+        lzma_rs::xz_compress(&mut raw.as_slice(), &mut xz).unwrap();
+        std::fs::write(path, xz).unwrap();
+    }
+
+    #[test]
+    fn unpacks_tar_xz_and_leaves_no_temporary_tar() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("helix.tar.xz.part");
+        tar_xz(
+            &archive,
+            &[
+                ("helix/hx", b"#!/bin/sh\n", 0o755),
+                ("helix/runtime/themes/x.toml", b"x", 0o644),
+            ],
+        );
+        let dest = dir.path().join("out");
+        std::fs::create_dir(&dest).unwrap();
+        extract(&archive, Kind::TarXz, &dest).unwrap();
+
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(dest.join("helix/hx"))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o755);
+        assert_eq!(
+            std::fs::read(dest.join("helix/runtime/themes/x.toml")).unwrap(),
+            b"x"
+        );
+        let left: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(left.len(), 2, "only the archive and out/: {left:?}");
+    }
+
+    #[test]
+    fn damaged_tar_xz_is_an_error_and_leaves_no_temporary_tar() {
+        let dir = tempfile::tempdir().unwrap();
+        let archive = dir.path().join("bad.tar.xz");
+        std::fs::write(&archive, b"not xz at all").unwrap();
+        let dest = dir.path().join("out");
+        std::fs::create_dir(&dest).unwrap();
+        let err = extract(&archive, Kind::TarXz, &dest).unwrap_err();
+        assert!(
+            format!("{err:#}").contains("cannot unpack .tar.xz"),
+            "{err:#}"
+        );
+        assert!(!dir.path().join("bad.tar.xz.tar").exists());
     }
 
     #[test]

@@ -1,0 +1,11 @@
+name = "helix"
+info = "Modal text editor"
+from = "github"
+repo = "helix-editor/helix"
+tags = "{version}"
+bins = ["hx"]
+
+# The release has no checksum file. hx finds runtime/ next to its real path.
+[plat]
+macos-x86_64  = { file = "helix-{version}-x86_64-macos.tar.xz", path = "helix-{version}-x86_64-macos/hx" }
+macos-aarch64 = { file = "helix-{version}-aarch64-macos.tar.xz", path = "helix-{version}-aarch64-macos/hx" }
