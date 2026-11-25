@@ -110,9 +110,6 @@ pub fn put_version(home: &Home, def: &Def, tag: &str, version: &str, pinned: boo
     let file = defs::expand(&plat.file, version);
     let exe = safe_relative(&defs::expand(&plat.path, version))?;
     let kind = Kind::of(&file);
-    if kind == Kind::TarXz {
-        bail!("`{file}`: .tar.xz files are not supported yet");
-    }
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));

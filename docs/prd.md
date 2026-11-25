@@ -171,7 +171,7 @@ Answering `n` keeps the old versions, and the next `boy u` asks again. An empty 
 Rust, written from scratch. gpm contributes lessons only (configurable install location, binary-only scope), no code.
 
 - HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the system root certificates. Redirects must be readable, not only followed.
-- Archives: `flate2` + `tar`, `xz2` or `lzma-rs`, `zip`.
+- Archives: `flate2` + `tar`, `lzma-rs` (pure Rust, for `.tar.xz`), `zip`.
 - Definitions and state: `serde` + `toml`.
 - Checksums: `sha2`.
 
