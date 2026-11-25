@@ -241,6 +241,27 @@ mod tests {
         assert!(TagPattern::new("{version}-{version}").is_err());
     }
 
+    /// fzf: `v` only in the tag, its own platform names, `{version}` in the sums file name.
+    #[test]
+    fn fzf_definition_expands_tag_files_and_sums() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "fzf").unwrap();
+        assert_eq!(def.tag_pattern().tag("0.75.0"), "v0.75.0");
+        assert_eq!(def.tag_pattern().version("v0.75.0"), Some("0.75.0"));
+        assert_eq!(
+            expand(&def.plat["macos-x86_64"].file, "0.75.0"),
+            "fzf-0.75.0-darwin_amd64.tar.gz"
+        );
+        assert_eq!(
+            expand(&def.plat["macos-aarch64"].file, "0.75.0"),
+            "fzf-0.75.0-darwin_arm64.tar.gz"
+        );
+        assert_eq!(
+            expand(def.sums.as_deref().unwrap(), "0.75.0"),
+            "fzf_0.75.0_checksums.txt"
+        );
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(
