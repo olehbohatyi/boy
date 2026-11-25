@@ -41,10 +41,16 @@ jobs:
           "$bin"
           vtool -show-build "$bin"
           vtool -show-build "$bin" | grep -Eq "(minos|version) ${{ matrix.min_macos }}"
-      - name: Install with install.sh (latest published release)
+      - name: Install with install.sh (latest published release, no terminal)
         run: |
-          BOY_HOME="$RUNNER_TEMP/boy" sh install.sh </dev/null
-          "$RUNNER_TEMP/boy/bins/boy" l | grep -q '^boy '
+          home="$RUNNER_TEMP/home"
+          mkdir -p "$home" && touch "$home/.zshrc"
+          HOME="$home" SHELL=/bin/zsh sh install.sh </dev/null 2>"$RUNNER_TEMP/out"
+          cat "$RUNNER_TEMP/out"
+          "$home/.boy/bins/boy" | head -1 | grep -q '^boy '
+          "$home/.boy/bins/boy" l | grep -q '^boy '
+          grep -qF 'export PATH="$HOME/.boy/bins:$PATH"' "$RUNNER_TEMP/out"
+          [ ! -s "$home/.zshrc" ] # no answer, so the shell file is untouched
       - uses: actions/upload-artifact@v4
         with:
           name: boy-${{ matrix.target }}

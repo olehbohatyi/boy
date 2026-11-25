@@ -67,10 +67,14 @@ offer_path() {
 
     answer=n
     # The script itself is usually on stdin (curl | sh), so ask on the terminal.
-    if [ -n "$rc" ] && { : </dev/tty; } 2>/dev/null; then
+    # Both checks run in subshells: a failed redirect on a builtin would end this shell.
+    if [ -n "$rc" ] && (: </dev/tty) 2>/dev/null; then
         printf 'add %s to PATH in %s? [Y/n] ' "$bins" "$rc" >&2
-        read -r answer </dev/tty || answer=n
-        [ -n "$answer" ] || answer=y
+        if answer=$( (read -r reply </dev/tty && printf '%s' "$reply") 2>/dev/null); then
+            [ -n "$answer" ] || answer=y
+        else
+            answer=n
+        fi
     fi
     case "$answer" in
         y | Y | yes | YES | Yes)
