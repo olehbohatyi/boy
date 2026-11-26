@@ -359,6 +359,9 @@ mod tests {
             }
         }
         for (name, sums) in [
+            ("ripgrep", "{file}.sha256"),
+            ("starship", "{file}.sha256"),
+            ("yq", "checksums-bsd"),
             ("lazygit", "checksums.txt"),
             ("gh", "gh_2.106.0_checksums.txt"),
         ] {
