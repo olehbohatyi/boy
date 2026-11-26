@@ -1,0 +1,10 @@
+name = "sbtn"
+info = "Native client for the sbt server (needs sbt)"
+from = "github"
+repo = "sbt/sbtn-dist"
+bins = ["sbtn"]
+
+# The release has signatures but no checksum file.
+[plat]
+macos-x86_64  = { file = "sbtn-universal-apple-darwin-{version}.tar.gz", path = "sbtn" }
+macos-aarch64 = { file = "sbtn-universal-apple-darwin-{version}.tar.gz", path = "sbtn" }
