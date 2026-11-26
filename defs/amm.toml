@@ -1,0 +1,11 @@
+name = "amm"
+info = "Ammonite, a Scala REPL and script runner (needs Java)"
+from = "github"
+repo = "com-lihaoyi/Ammonite"
+tags = "{version}"
+bins = ["amm"]
+
+# The release has one file per Scala version (this is the 3.8 build) and no checksum file.
+[plat]
+macos-x86_64  = { file = "3.8-{version}", path = "amm" }
+macos-aarch64 = { file = "3.8-{version}", path = "amm" }

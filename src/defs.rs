@@ -439,6 +439,38 @@ mod tests {
         }
     }
 
+    /// Ammonite names its release files by Scala version, then its own version.
+    #[test]
+    fn amm_definition_picks_the_scala_3_8_build() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "amm").unwrap();
+        assert_eq!(def.tag_pattern().tag("3.0.9"), "3.0.9");
+        assert!(def.sums.is_none(), "Ammonite publishes no checksum file");
+        for key in ["macos-x86_64", "macos-aarch64"] {
+            let plat = &def.plat[key];
+            assert_eq!(expand(&plat.file, "3.0.9"), "3.8-3.0.9", "{key}");
+            assert_eq!(plat.path, "amm", "{key}");
+        }
+    }
+
+    /// sbtn ships one universal macOS archive.
+    #[test]
+    fn sbtn_definition_uses_the_universal_archive() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "sbtn").unwrap();
+        assert_eq!(def.tag_pattern().tag("2.1.1"), "v2.1.1");
+        assert!(def.sums.is_none(), "sbtn publishes no checksum file");
+        for key in ["macos-x86_64", "macos-aarch64"] {
+            let plat = &def.plat[key];
+            assert_eq!(
+                expand(&plat.file, "2.1.1"),
+                "sbtn-universal-apple-darwin-2.1.1.tar.gz",
+                "{key}"
+            );
+            assert_eq!(plat.path, "sbtn", "{key}");
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(
