@@ -1,0 +1,10 @@
+name = "coursier"
+info = "Scala and JVM artifact fetcher and application installer (cs)"
+from = "github"
+repo = "coursier/coursier"
+bins = ["cs"]
+
+# The release has no checksum file.
+[plat]
+macos-x86_64  = { file = "cs-x86_64-apple-darwin-sdk.zip", path = "cs-x86_64-apple-darwin-sdk/bin/cs" }
+macos-aarch64 = { file = "cs-aarch64-apple-darwin-sdk.zip", path = "cs-aarch64-apple-darwin-sdk/bin/cs" }
