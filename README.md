@@ -3,7 +3,7 @@
 A personal package manager for prebuilt binaries.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/olehbohatyi/boy/main/install.sh | sh
+curl -fsSL https://github.com/olehbohatyi/boy/raw/main/install.sh | sh
 ```
 
 ```
