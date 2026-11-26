@@ -6,10 +6,11 @@ use anyhow::{Context, Result, bail};
 
 use crate::archive::{self, Kind};
 use crate::defs::{self, Def};
-use crate::github;
 use crate::home::Home;
 use crate::lock::{Entry, Lock};
+use crate::net;
 use crate::registry;
+use crate::source::Source;
 use crate::sums;
 
 /// Install the latest release of `name`, or with `pin` that exact version, pinned.
@@ -27,14 +28,9 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
             Def::load(&home.defs(), name)?
         }
     };
-    if def.from != "github" {
-        bail!(
-            "`{name}` uses source `{}`, which this boy does not support",
-            def.from
-        );
-    }
+    let source = Source::of(&def)?;
     // Fail early, before any network, when this system has no release file.
-    def.current_plat()?;
+    let plat = def.current_plat()?;
 
     let mut lock = Lock::load(&home.lock())?;
     // With another version installed, `name@version` switches to it (the rollback path).
@@ -60,17 +56,8 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
     }
 
     let (tag, version) = match pin {
-        Some(version) => {
-            let tag = def.tag_pattern().tag(version);
-            if !github::tag_exists(&def.repo, &tag)? {
-                bail!(
-                    "`{name}` has no release {version} (no tag `{tag}` in {})",
-                    def.repo
-                );
-            }
-            (tag, version.to_string())
-        }
-        None => latest(&def)?,
+        Some(version) => source.pinned(&def, version, &defs::expand(&plat.file, version))?,
+        None => source.latest(&def)?,
     };
 
     put_version(home, &def, &tag, &version, pin.is_some())?;
@@ -86,26 +73,11 @@ pub fn install(home: &Home, name: &str, pin: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// The latest release as `(tag, version)`.
-pub fn latest(def: &Def) -> Result<(String, String)> {
-    let tag = github::latest_tag(&def.repo)?;
-    let version = def
-        .tag_pattern()
-        .version(&tag)
-        .with_context(|| {
-            format!(
-                "latest tag `{tag}` does not match `tags = \"{}\"`",
-                def.tags
-            )
-        })?
-        .to_string();
-    Ok((tag, version))
-}
-
 /// Download, verify and unpack one version into `pkgs/<name>/<version>/`, point the
 /// links at it and record it in the lock. Other versions in `pkgs/<name>/` stay.
 pub fn put_version(home: &Home, def: &Def, tag: &str, version: &str, pinned: bool) -> Result<()> {
     let name = def.name.as_str();
+    let source = Source::of(def)?;
     let plat = def.current_plat()?;
     let file = defs::expand(&plat.file, version);
     let exe = safe_relative(&defs::expand(&plat.path, version))?;
@@ -113,8 +85,8 @@ pub fn put_version(home: &Home, def: &Def, tag: &str, version: &str, pinned: boo
 
     // Download into temp/, then move into place, so pkgs/ never holds a half file.
     let part = home.temp().join(format!("{name}-{version}.part"));
-    let fetched = github::download(&github::download_url(&def.repo, tag, &file), &part)
-        .and_then(|()| check_sums(home, def, tag, version, &file, &part));
+    let fetched = net::download(&source.url(def, tag, &file), &part)
+        .and_then(|()| check_sums(home, def, source, tag, version, &file, &part));
     if let Err(e) = fetched {
         let _ = std::fs::remove_file(&part);
         return Err(e);
@@ -215,6 +187,7 @@ fn stage_release(
 fn check_sums(
     home: &Home,
     def: &Def,
+    source: Source,
     tag: &str,
     version: &str,
     file: &str,
@@ -229,10 +202,7 @@ fn check_sums(
     };
     let (sums_file, per_file) = sums_name(sums, version, file);
     let sums_path = home.temp().join(format!("{}-{version}.sums", def.name));
-    github::download(
-        &github::download_url(&def.repo, tag, &sums_file),
-        &sums_path,
-    )?;
+    net::download(&source.url(def, tag, &sums_file), &sums_path)?;
     let text = std::fs::read_to_string(&sums_path);
     let _ = std::fs::remove_file(&sums_path);
     let text = text.with_context(|| format!("cannot read `{sums_file}`"))?;

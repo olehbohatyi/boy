@@ -10,6 +10,7 @@ use crate::home::Home;
 use crate::install;
 use crate::lock::Lock;
 use crate::registry;
+use crate::source::Source;
 
 pub fn update(home: &Home, only: Option<&str>) -> Result<()> {
     update_with(home, only, &mut std::io::stdin().lock())
@@ -79,7 +80,7 @@ fn update_with(home: &Home, only: Option<&str>, input: &mut impl BufRead) -> Res
 /// Returns the new version, or `None` when there is nothing newer.
 fn upgrade(home: &Home, name: &str, current: &str, pinned: bool) -> Result<Option<String>> {
     let def = Def::load(&home.defs(), name)?;
-    let (tag, version) = install::latest(&def)?;
+    let (tag, version) = Source::of(&def)?.latest(&def)?;
     if version == current {
         if pinned {
             // `boy u <name>` on a pinned package that is already the latest: just unpin.
