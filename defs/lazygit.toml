@@ -1,0 +1,10 @@
+name = "lazygit"
+info = "Terminal user interface for git"
+from = "github"
+repo = "jesseduffield/lazygit"
+bins = ["lazygit"]
+sums = "checksums.txt"
+
+[plat]
+macos-x86_64  = { file = "lazygit_{version}_darwin_x86_64.tar.gz", path = "lazygit" }
+macos-aarch64 = { file = "lazygit_{version}_darwin_arm64.tar.gz", path = "lazygit" }

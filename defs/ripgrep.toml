@@ -1,0 +1,11 @@
+name = "ripgrep"
+info = "Fast recursive text search (rg)"
+from = "github"
+repo = "BurntSushi/ripgrep"
+tags = "{version}"
+bins = ["rg"]
+
+# The release has one .sha256 file per archive, which `sums` cannot name.
+[plat]
+macos-x86_64  = { file = "ripgrep-{version}-x86_64-apple-darwin.tar.gz", path = "ripgrep-{version}-x86_64-apple-darwin/rg" }
+macos-aarch64 = { file = "ripgrep-{version}-aarch64-apple-darwin.tar.gz", path = "ripgrep-{version}-aarch64-apple-darwin/rg" }

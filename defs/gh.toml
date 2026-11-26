@@ -1,0 +1,10 @@
+name = "gh"
+info = "GitHub command-line tool"
+from = "github"
+repo = "cli/cli"
+bins = ["gh"]
+sums = "gh_{version}_checksums.txt"
+
+[plat]
+macos-x86_64  = { file = "gh_{version}_macOS_amd64.zip", path = "gh_{version}_macOS_amd64/bin/gh" }
+macos-aarch64 = { file = "gh_{version}_macOS_arm64.zip", path = "gh_{version}_macOS_arm64/bin/gh" }

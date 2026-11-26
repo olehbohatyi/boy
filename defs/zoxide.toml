@@ -1,0 +1,10 @@
+name = "zoxide"
+info = "Smarter cd command that learns your folders"
+from = "github"
+repo = "ajeetdsouza/zoxide"
+bins = ["zoxide"]
+
+# The release has no checksum file.
+[plat]
+macos-x86_64  = { file = "zoxide-{version}-x86_64-apple-darwin.tar.gz", path = "zoxide" }
+macos-aarch64 = { file = "zoxide-{version}-aarch64-apple-darwin.tar.gz", path = "zoxide" }
