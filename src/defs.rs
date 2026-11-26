@@ -289,6 +289,26 @@ mod tests {
         assert!(def.sums.is_none(), "helix publishes no checksum file");
     }
 
+    /// ripgrep-all: several commands from one release folder.
+    #[test]
+    fn ripgrep_all_definition_lists_every_command() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "ripgrep-all").unwrap();
+        assert_eq!(def.bins, ["rga", "rga-preproc", "rga-fzf", "rga-fzf-open"]);
+        assert_eq!(def.tag_pattern().tag("0.10.10"), "v0.10.10");
+        for (key, arch) in [("macos-x86_64", "x86_64"), ("macos-aarch64", "aarch64")] {
+            let plat = &def.plat[key];
+            assert_eq!(
+                expand(&plat.file, "0.10.10"),
+                format!("ripgrep_all-v0.10.10-{arch}-apple-darwin.tar.gz")
+            );
+            assert_eq!(
+                expand(&plat.path, "0.10.10"),
+                format!("ripgrep_all-v0.10.10-{arch}-apple-darwin/rga")
+            );
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(
