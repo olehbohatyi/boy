@@ -1,0 +1,10 @@
+name = "sbt"
+info = "Build tool for Scala and Java (needs Java)"
+from = "github"
+repo = "sbt/sbt"
+bins = ["sbt"]
+sums = "{file}.sha256"
+
+[plat]
+macos-x86_64  = { file = "sbt-{version}.tgz", path = "sbt/bin/sbt" }
+macos-aarch64 = { file = "sbt-{version}.tgz", path = "sbt/bin/sbt" }

@@ -1,0 +1,10 @@
+name = "scalafmt"
+info = "Code formatter for Scala"
+from = "github"
+repo = "scalameta/scalafmt"
+bins = ["scalafmt"]
+
+# The release has no checksum file.
+[plat]
+macos-x86_64  = { file = "scalafmt-x86_64-apple-darwin.zip", path = "scalafmt" }
+macos-aarch64 = { file = "scalafmt-aarch64-apple-darwin.zip", path = "scalafmt" }

@@ -1,0 +1,10 @@
+name = "scala-cli"
+info = "Command-line tool to run, test and package Scala code"
+from = "github"
+repo = "VirtusLab/scala-cli"
+bins = ["scala-cli"]
+
+# The release has no checksum file.
+[plat]
+macos-x86_64  = { file = "scala-cli-x86_64-apple-darwin-sdk.zip", path = "scala-cli-x86_64-apple-darwin-sdk/bin/scala-cli" }
+macos-aarch64 = { file = "scala-cli-aarch64-apple-darwin-sdk.zip", path = "scala-cli-aarch64-apple-darwin-sdk/bin/scala-cli" }

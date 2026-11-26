@@ -408,6 +408,37 @@ mod tests {
         }
     }
 
+    /// sbt and the Scala tools: their tags, release names, paths and checksum files.
+    #[test]
+    fn scala_tool_definitions_expand_to_the_release_names() {
+        #[rustfmt::skip]
+        let cases = [
+            ("sbt", "2.1.1", "v2.1.1", Some("{file}.sha256"),
+             ("sbt-2.1.1.tgz", "sbt/bin/sbt"),
+             ("sbt-2.1.1.tgz", "sbt/bin/sbt")),
+            ("scala", "3.10.1", "3.10.1", Some("{file}.sha256"),
+             ("scala3-3.10.1-x86_64-apple-darwin.tar.gz", "scala3-3.10.1-x86_64-apple-darwin/bin/scala"),
+             ("scala3-3.10.1-aarch64-apple-darwin.tar.gz", "scala3-3.10.1-aarch64-apple-darwin/bin/scala")),
+            ("scala-cli", "1.19.0", "v1.19.0", None,
+             ("scala-cli-x86_64-apple-darwin-sdk.zip", "scala-cli-x86_64-apple-darwin-sdk/bin/scala-cli"),
+             ("scala-cli-aarch64-apple-darwin-sdk.zip", "scala-cli-aarch64-apple-darwin-sdk/bin/scala-cli")),
+            ("scalafmt", "3.11.5", "v3.11.5", None,
+             ("scalafmt-x86_64-apple-darwin.zip", "scalafmt"),
+             ("scalafmt-aarch64-apple-darwin.zip", "scalafmt")),
+        ];
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        for (name, version, tag, sums, intel, arm) in cases {
+            let def = Def::load(&dir, name).unwrap();
+            assert_eq!(def.tag_pattern().tag(version), tag, "{name}");
+            assert_eq!(def.sums.as_deref(), sums, "{name}");
+            for (key, (file, path)) in [("macos-x86_64", intel), ("macos-aarch64", arm)] {
+                let plat = &def.plat[key];
+                assert_eq!(expand(&plat.file, version), file, "{name} {key}");
+                assert_eq!(expand(&plat.path, version), path, "{name} {key}");
+            }
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(

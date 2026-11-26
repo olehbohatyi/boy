@@ -1,0 +1,11 @@
+name = "scala"
+info = "Scala 3 runner and compiler (needs Java)"
+from = "github"
+repo = "scala/scala3"
+tags = "{version}"
+bins = ["scala", "scalac"]
+sums = "{file}.sha256"
+
+[plat]
+macos-x86_64  = { file = "scala3-{version}-x86_64-apple-darwin.tar.gz", path = "scala3-{version}-x86_64-apple-darwin/bin/scala" }
+macos-aarch64 = { file = "scala3-{version}-aarch64-apple-darwin.tar.gz", path = "scala3-{version}-aarch64-apple-darwin/bin/scala" }
