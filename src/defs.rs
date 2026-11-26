@@ -314,6 +314,59 @@ mod tests {
         }
     }
 
+    /// The tag and the Intel and arm64 `file` and `path` of definitions added together,
+    /// checked against the names in their releases.
+    #[test]
+    fn registry_definitions_expand_to_the_release_names() {
+        #[rustfmt::skip]
+        let cases = [
+            ("ripgrep", "16.0.0", "16.0.0",
+             ("ripgrep-16.0.0-x86_64-apple-darwin.tar.gz", "ripgrep-16.0.0-x86_64-apple-darwin/rg"),
+             ("ripgrep-16.0.0-aarch64-apple-darwin.tar.gz", "ripgrep-16.0.0-aarch64-apple-darwin/rg")),
+            ("fd", "10.5.2", "v10.5.2",
+             ("fd-v10.5.2-x86_64-apple-darwin.tar.gz", "fd-v10.5.2-x86_64-apple-darwin/fd"),
+             ("fd-v10.5.2-aarch64-apple-darwin.tar.gz", "fd-v10.5.2-aarch64-apple-darwin/fd")),
+            ("bat", "0.26.1", "v0.26.1",
+             ("bat-v0.26.1-x86_64-apple-darwin.tar.gz", "bat-v0.26.1-x86_64-apple-darwin/bat"),
+             ("bat-v0.26.1-aarch64-apple-darwin.tar.gz", "bat-v0.26.1-aarch64-apple-darwin/bat")),
+            ("zoxide", "0.10.0", "v0.10.0",
+             ("zoxide-0.10.0-x86_64-apple-darwin.tar.gz", "zoxide"),
+             ("zoxide-0.10.0-aarch64-apple-darwin.tar.gz", "zoxide")),
+            ("starship", "1.27.0", "v1.27.0",
+             ("starship-x86_64-apple-darwin.tar.gz", "starship"),
+             ("starship-aarch64-apple-darwin.tar.gz", "starship")),
+            ("lazygit", "0.66.3", "v0.66.3",
+             ("lazygit_0.66.3_darwin_x86_64.tar.gz", "lazygit"),
+             ("lazygit_0.66.3_darwin_arm64.tar.gz", "lazygit")),
+            ("yq", "4.54.3", "v4.54.3",
+             ("yq_darwin_amd64", "yq"),
+             ("yq_darwin_arm64", "yq")),
+            ("gh", "2.106.0", "v2.106.0",
+             ("gh_2.106.0_macOS_amd64.zip", "gh_2.106.0_macOS_amd64/bin/gh"),
+             ("gh_2.106.0_macOS_arm64.zip", "gh_2.106.0_macOS_arm64/bin/gh")),
+            ("neovim", "0.12.6", "v0.12.6",
+             ("nvim-macos-x86_64.tar.gz", "nvim-macos-x86_64/bin/nvim"),
+             ("nvim-macos-arm64.tar.gz", "nvim-macos-arm64/bin/nvim")),
+        ];
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        for (name, version, tag, intel, arm) in cases {
+            let def = Def::load(&dir, name).unwrap();
+            assert_eq!(def.tag_pattern().tag(version), tag, "{name}");
+            for (key, (file, path)) in [("macos-x86_64", intel), ("macos-aarch64", arm)] {
+                let plat = &def.plat[key];
+                assert_eq!(expand(&plat.file, version), file, "{name} {key}");
+                assert_eq!(expand(&plat.path, version), path, "{name} {key}");
+            }
+        }
+        for (name, sums) in [
+            ("lazygit", "checksums.txt"),
+            ("gh", "gh_2.106.0_checksums.txt"),
+        ] {
+            let def = Def::load(&dir, name).unwrap();
+            assert_eq!(expand(def.sums.as_deref().unwrap(), "2.106.0"), sums);
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(

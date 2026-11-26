@@ -1,0 +1,10 @@
+name = "yq"
+info = "Command-line YAML, JSON and XML processor"
+from = "github"
+repo = "mikefarah/yq"
+bins = ["yq"]
+
+# The release's checksum files are not in the `hash  file` format.
+[plat]
+macos-x86_64  = { file = "yq_darwin_amd64", path = "yq" }
+macos-aarch64 = { file = "yq_darwin_arm64", path = "yq" }

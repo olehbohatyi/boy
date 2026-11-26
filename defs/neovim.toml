@@ -1,0 +1,10 @@
+name = "neovim"
+info = "Vim-based text editor"
+from = "github"
+repo = "neovim/neovim"
+bins = ["nvim"]
+
+# The release has no checksum file. nvim finds lib/ and share/ next to its real path.
+[plat]
+macos-x86_64  = { file = "nvim-macos-x86_64.tar.gz", path = "nvim-macos-x86_64/bin/nvim" }
+macos-aarch64 = { file = "nvim-macos-arm64.tar.gz", path = "nvim-macos-arm64/bin/nvim" }

@@ -1,0 +1,10 @@
+name = "starship"
+info = "Fast, customizable shell prompt"
+from = "github"
+repo = "starship/starship"
+bins = ["starship"]
+
+# The release has one .sha256 file per archive, which `sums` cannot name.
+[plat]
+macos-x86_64  = { file = "starship-x86_64-apple-darwin.tar.gz", path = "starship" }
+macos-aarch64 = { file = "starship-aarch64-apple-darwin.tar.gz", path = "starship" }

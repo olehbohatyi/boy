@@ -157,6 +157,28 @@ mod tests {
         assert_eq!(names, ["jq", "just"]);
     }
 
+    /// Two programs with the same command would fight over one link in `bins/`.
+    #[test]
+    fn registry_commands_are_unique() {
+        let defs = Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let mut seen = std::collections::BTreeMap::new();
+        for def in load_all(&defs).unwrap() {
+            for bin in &def.bins {
+                if let Some(other) = seen.insert(bin.clone(), def.name.clone()) {
+                    panic!("`{bin}` is provided by both {other} and {}", def.name);
+                }
+            }
+        }
+    }
+
+    /// `load_all` skips broken files with a warning, so check every file loads.
+    #[test]
+    fn every_registry_file_loads() {
+        let defs = Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let files = std::fs::read_dir(&defs).unwrap().count();
+        assert_eq!(load_all(&defs).unwrap().len(), files);
+    }
+
     #[test]
     fn the_registry_definitions_all_have_a_description() {
         let defs = Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
