@@ -1,0 +1,10 @@
+name = "delta"
+info = "Syntax-highlighting pager for git, diff and grep output"
+from = "github"
+repo = "dandavison/delta"
+tags = "{version}"
+bins = ["delta"]
+
+# Since 0.18.2 there is no Intel macOS build, and the release has no checksum file.
+[plat]
+macos-aarch64 = { file = "delta-{version}-aarch64-apple-darwin.tar.gz", path = "delta-{version}-aarch64-apple-darwin/delta" }

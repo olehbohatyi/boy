@@ -68,9 +68,14 @@ impl Def {
     /// The entry for the platform boy is running on.
     pub fn current_plat(&self) -> Result<&Plat> {
         let key = platform_key();
-        self.plat
-            .get(key)
-            .with_context(|| format!("`{}` is not available for this system ({key})", self.name))
+        self.plat.get(key).with_context(|| {
+            let have: Vec<&str> = self.plat.keys().map(String::as_str).collect();
+            format!(
+                "`{}` is not available for this system ({key}); it has releases for {}",
+                self.name,
+                have.join(", ")
+            )
+        })
     }
 
     pub fn tag_pattern(&self) -> TagPattern {

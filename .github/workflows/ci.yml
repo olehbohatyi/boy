@@ -51,6 +51,22 @@ jobs:
           "$home/.boy/bins/boy" l | grep -q '^boy '
           grep -qF 'export PATH="$HOME/.boy/bins:$PATH"' "$RUNNER_TEMP/out"
           [ ! -s "$home/.zshrc" ] # no answer, so the shell file is untouched
+      - name: delta installs on Apple Silicon and is refused on Intel
+        run: |
+          home="$RUNNER_TEMP/delta-home"
+          mkdir -p "$home/defs" && cp defs/*.toml "$home/defs/"
+          bin=target/${{ matrix.target }}/release/boy
+          if [ "${{ matrix.target }}" = aarch64-apple-darwin ]; then
+            BOY_HOME="$home" "$bin" i delta
+            "$home/bins/delta" --version
+          else
+            if BOY_HOME="$home" "$bin" i delta 2>"$RUNNER_TEMP/err"; then
+              echo "delta installed on Intel" >&2; exit 1
+            fi
+            cat "$RUNNER_TEMP/err"
+            grep -q "not available for this system" "$RUNNER_TEMP/err"
+            [ -z "$(ls -A "$home/bins")" ] && [ -z "$(ls -A "$home/pkgs")" ] && [ ! -e "$home/lock.toml" ]
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: boy-${{ matrix.target }}

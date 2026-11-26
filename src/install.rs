@@ -282,6 +282,53 @@ fn link(target: &Path, link: &Path) -> Result<()> {
 mod tests {
     use super::*;
 
+    /// A definition without this system's platform stops before any network or change.
+    #[test]
+    fn a_program_without_this_platform_is_refused_and_nothing_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = Home::at(dir.path());
+        home.ensure().unwrap();
+        let other = if defs::platform_key() == "macos-aarch64" {
+            "macos-x86_64"
+        } else {
+            "macos-aarch64"
+        };
+        let def = format!(
+            "name = \"only\"\nfrom = \"github\"\nrepo = \"nobody/only\"\nbins = [\"only\"]\n\
+             [plat]\n{other} = {{ file = \"only\", path = \"only\" }}\n"
+        );
+        std::fs::write(home.defs().join("only.toml"), def).unwrap();
+
+        let err = install(&home, "only", None).unwrap_err().to_string();
+        assert!(err.contains("not available for this system"), "{err}");
+        assert!(
+            err.ends_with(&format!("it has releases for {other}")),
+            "{err}"
+        );
+        for dir in [home.bins(), home.pkgs(), home.temp()] {
+            assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0, "{dir:?}");
+        }
+        assert!(!home.lock().exists());
+    }
+
+    /// delta ships Apple Silicon only.
+    #[test]
+    fn delta_definition_is_apple_silicon_only() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "delta").unwrap();
+        assert_eq!(def.plat.keys().collect::<Vec<_>>(), ["macos-aarch64"]);
+        let arm = &def.plat["macos-aarch64"];
+        assert_eq!(
+            defs::expand(&arm.file, "0.22.0"),
+            "delta-0.22.0-aarch64-apple-darwin.tar.gz"
+        );
+        assert_eq!(
+            defs::expand(&arm.path, "0.22.0"),
+            "delta-0.22.0-aarch64-apple-darwin/delta"
+        );
+        assert_eq!(def.tag_pattern().tag("0.22.0"), "0.22.0");
+    }
+
     /// The fallback in `install`: a home without `defs/` fetches the registry first.
     /// Hits the network; run with `cargo test -- --ignored`.
     #[test]
