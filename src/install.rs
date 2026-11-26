@@ -227,7 +227,7 @@ fn check_sums(
         );
         return Ok(());
     };
-    let sums_file = defs::expand(sums, version);
+    let (sums_file, per_file) = sums_name(sums, version, file);
     let sums_path = home.temp().join(format!("{}-{version}.sums", def.name));
     github::download(
         &github::download_url(&def.repo, tag, &sums_file),
@@ -236,7 +236,13 @@ fn check_sums(
     let text = std::fs::read_to_string(&sums_path);
     let _ = std::fs::remove_file(&sums_path);
     let text = text.with_context(|| format!("cannot read `{sums_file}`"))?;
-    sums::verify(part, &text, file)
+    sums::verify(part, &text, file, per_file)
+}
+
+/// The checksum file's name in the release, and whether it belongs to `file` alone.
+fn sums_name(template: &str, version: &str, file: &str) -> (String, bool) {
+    let name = defs::expand(template, version).replace("{file}", file);
+    (name, template.contains("{file}"))
 }
 
 /// With one command, `path` is the executable. With several, they sit next to it.
@@ -309,6 +315,19 @@ mod tests {
             assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 0, "{dir:?}");
         }
         assert!(!home.lock().exists());
+    }
+
+    #[test]
+    fn sums_name_expands_version_and_file() {
+        let file = "rg-1.0.0.tar.gz";
+        assert_eq!(
+            sums_name("tool_{version}_checksums.txt", "1.0.0", file),
+            ("tool_1.0.0_checksums.txt".to_string(), false)
+        );
+        assert_eq!(
+            sums_name("{file}.sha256", "1.0.0", file),
+            ("rg-1.0.0.tar.gz.sha256".to_string(), true)
+        );
     }
 
     /// delta ships Apple Silicon only.
