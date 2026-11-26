@@ -367,6 +367,44 @@ mod tests {
         }
     }
 
+    /// uv, bun and coursier: their tags, release names and checksum files.
+    #[test]
+    fn uv_bun_and_coursier_definitions_expand_to_the_release_names() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        for (name, version, tag, sums, intel, arm) in [
+            (
+                "uv",
+                "0.13.10",
+                "0.13.10",
+                Some("{file}.sha256"),
+                "uv-x86_64-apple-darwin.tar.gz",
+                "uv-aarch64-apple-darwin.tar.gz",
+            ),
+            (
+                "bun",
+                "1.4.5",
+                "bun-v1.4.5",
+                Some("SHASUMS256.txt"),
+                "bun-darwin-x64.zip",
+                "bun-darwin-aarch64.zip",
+            ),
+            (
+                "coursier",
+                "2.1.27",
+                "v2.1.27",
+                None,
+                "cs-x86_64-apple-darwin-sdk.zip",
+                "cs-aarch64-apple-darwin-sdk.zip",
+            ),
+        ] {
+            let def = Def::load(&dir, name).unwrap();
+            assert_eq!(def.tag_pattern().tag(version), tag, "{name}");
+            assert_eq!(def.sums.as_deref(), sums, "{name}");
+            assert_eq!(def.plat["macos-x86_64"].file, intel);
+            assert_eq!(def.plat["macos-aarch64"].file, arm);
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(

@@ -1,0 +1,11 @@
+name = "bun"
+info = "JavaScript runtime, bundler, test runner and package manager"
+from = "github"
+repo = "oven-sh/bun"
+tags = "bun-v{version}"
+bins = ["bun"]
+sums = "SHASUMS256.txt"
+
+[plat]
+macos-x86_64  = { file = "bun-darwin-x64.zip", path = "bun-darwin-x64/bun" }
+macos-aarch64 = { file = "bun-darwin-aarch64.zip", path = "bun-darwin-aarch64/bun" }
