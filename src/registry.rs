@@ -7,8 +7,8 @@ use std::path::{Component, Path};
 use anyhow::{Context, Result};
 
 use crate::defs;
-use crate::github;
 use crate::home::Home;
+use crate::net;
 
 /// The boy repository as one archive, by direct link (no API).
 const ARCHIVE: &str = "https://github.com/olehbohatyi/boy/archive/refs/heads/main.tar.gz";
@@ -24,7 +24,7 @@ pub fn refresh(home: &Home) -> Result<usize> {
     }
     std::fs::create_dir_all(&fresh)?;
 
-    let count = github::download(ARCHIVE, &part).and_then(|()| extract_defs(&part, &fresh));
+    let count = net::download(ARCHIVE, &part).and_then(|()| extract_defs(&part, &fresh));
     let _ = std::fs::remove_file(&part);
     let count = match count {
         Ok(0) => Err(anyhow::anyhow!("the registry archive has no definitions")),

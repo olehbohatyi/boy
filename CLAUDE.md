@@ -19,7 +19,9 @@ cargo test -- --ignored   # tests that hit the network
 - `src/main.rs`: command dispatch (`i`, `r`, `l`, `s`, `u`).
 - `src/home.rs`: the boy home (`BOY_HOME`, else found from the boy binary, else `~/.boy`) and its folders `bins/`, `pkgs/`, `defs/`, `temp/`, `lock.toml`.
 - `src/defs.rs`: program definitions (`defs/<name>.toml`), tag patterns, platform keys.
+- `src/source.rs`: dispatch on a definition's `from`; `src/net.rs`: shared HTTP.
 - `src/github.rs`: the `github` source. Public release links only.
+- `src/oracle.rs`: the `oracle` source (Oracle JDK).
 - `src/sums.rs`: SHA-256 checks against a release's checksum file.
 - `src/archive.rs`: unpacking `.tar.gz`, `.tar.xz` and `.zip`.
 - `src/registry.rs`: the local registry copy, refreshed from this repository's archive by direct link.

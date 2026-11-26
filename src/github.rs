@@ -1,22 +1,8 @@
 //! The `github` source: public release links only, no API, no tokens.
 
-use std::io::Write;
-use std::path::Path;
-use std::time::Duration;
+use anyhow::{Context, Result};
 
-use anyhow::{Context, Result, bail};
-use ureq::Agent;
-
-const USER_AGENT: &str = concat!("boy/", env!("CARGO_PKG_VERSION"));
-
-fn agent(max_redirects: u32) -> Agent {
-    Agent::config_builder()
-        .user_agent(USER_AGENT)
-        .max_redirects(max_redirects)
-        .timeout_connect(Some(Duration::from_secs(15)))
-        .build()
-        .into()
-}
+use crate::net::agent;
 
 /// The latest release tag, read from the `releases/latest` redirect.
 pub fn latest_tag(repo: &str) -> Result<String> {
@@ -52,21 +38,6 @@ fn tag_from_location(location: &str) -> Option<String> {
 
 pub fn download_url(repo: &str, tag: &str, file: &str) -> String {
     format!("https://github.com/{repo}/releases/download/{tag}/{file}")
-}
-
-/// Download `url` into `dest`, streaming to disk.
-pub fn download(url: &str, dest: &Path) -> Result<()> {
-    let mut resp = match agent(10).get(url).call() {
-        Ok(resp) => resp,
-        Err(ureq::Error::StatusCode(404)) => bail!("not found: {url}"),
-        Err(e) => return Err(e).with_context(|| format!("cannot download {url}")),
-    };
-    let mut file =
-        std::fs::File::create(dest).with_context(|| format!("cannot create {}", dest.display()))?;
-    std::io::copy(&mut resp.body_mut().as_reader(), &mut file)
-        .with_context(|| format!("download interrupted: {url}"))?;
-    file.flush()?;
-    Ok(())
 }
 
 #[cfg(test)]

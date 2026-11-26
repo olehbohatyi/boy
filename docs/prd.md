@@ -69,8 +69,8 @@ All keys have four letters.
 |---|---|---|
 | `name` | yes | Program name, used in `boy i <name>`. Matches the file name. |
 | `info` | no | One-line description, shown and searched by `boy s`. Every registry definition has one. |
-| `from` | yes | Source type. Selects the implementation that fetches it. v1 supports only `github`. |
-| `repo` | yes | Where the program lives in that source, for example `jqlang/jq`. |
+| `from` | yes | Source type. Selects the implementation that fetches it: `github` or `oracle`. |
+| `repo` | yes | Where the program lives in that source: for `github` the repository, for example `jqlang/jq`; for `oracle` the Java major version, for example `27`. |
 | `tags` | no | Release tag pattern. Default `v{version}`. |
 | `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. With several commands, each is found in the same folder as `path`. |
 | `sums` | no | Name of the checksum file in the release, for example `SHA256SUMS`. May contain `{version}` and `{file}`, the release file name of the current platform. |
@@ -120,7 +120,7 @@ boy 0.3.0 and older understand neither `{file}`, BSD lines nor a bare hash, and 
 
 ### 6.3 Sources
 
-`from` is the extension point. Each source is a separate implementation behind one interface: find the latest version, build the download URL, download. v1 implements `github` only. Later sources (for example my own server) are added as new implementations without changing definitions that use `github`.
+`from` is the extension point. Each source is a separate implementation behind one interface: find the latest version, build the download URL, download. v1 implements `github` (section 7) and `oracle` (section 7.1). Later sources (for example my own server) are added as new implementations without changing definitions that use the existing ones. boy 0.4.0 and older do not support `oracle` and say so when asked to install such a program.
 
 ## 7. Network: the github Source
 
@@ -131,6 +131,16 @@ boy uses no GitHub API and no tokens. It only follows public links.
 - **Checksum:** if `sums` is set, boy downloads that file from the same release and checks the SHA-256 of the downloaded file against it. On a mismatch boy refuses to install. If `sums` is not set, boy installs and prints a warning.
 
 Because none of this goes through the API, there is no rate limit to worry about, however many packages are installed.
+
+### 7.1 The oracle Source
+
+For Oracle JDK, which is not published on GitHub. It needs no account and no token. `repo` is a Java major version, and `tags` is `{version}`.
+
+- **Latest version:** `https://java.oraclecloud.com/javaVersions` lists each major version with its latest release. boy takes the entry for `repo`.
+- **Download:** `https://download.oracle.com/java/<repo>/archive/<file>`. A pinned version exists if its file does.
+- **Checksum:** as for `github`; Oracle publishes a bare hash beside each file, so `sums = "{file}.sha256"`.
+
+A new major version is a change to `repo` in the definition.
 
 ## 8. Version 1 Commands
 
@@ -181,7 +191,7 @@ Rust, written from scratch. gpm contributes lessons only (configurable install l
 
 - HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the system root certificates. Redirects must be readable, not only followed.
 - Archives: `flate2` + `tar`, `lzma-rs` (pure Rust, for `.tar.xz`), `zip`.
-- Definitions and state: `serde` + `toml`.
+- Definitions and state: `serde` + `toml`. Oracle's version list: `serde_json`.
 - Checksums: `sha2`.
 
 ## 11. Utility Family
@@ -199,7 +209,7 @@ The utilities themselves are not part of boy version 1.
 - Linux (v1.1) and Windows (later).
 - Building packages from source.
 - Dependency management between packages.
-- Sources other than `github`.
+- Sources other than `github` and `oracle`.
 - GitHub API access and tokens.
 - Guessing release files without a definition.
 - Checking whether a downloaded binary supports the running macOS version. Testing each program before adding it to the registry covers this for now.

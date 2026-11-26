@@ -5,9 +5,12 @@ mod home;
 mod install;
 mod list;
 mod lock;
+mod net;
+mod oracle;
 mod registry;
 mod remove;
 mod search;
+mod source;
 mod sums;
 mod update;
 
