@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install boy: curl -fsSL https://raw.githubusercontent.com/olehbohatyi/boy/main/install.sh | sh
+# Install boy: curl -fsSL https://github.com/olehbohatyi/boy/raw/main/install.sh | sh
 #
 # Downloads the latest boy release by direct link (no GitHub API), checks it against
 # SHA256SUMS, and lets that boy install itself into the boy home with `boy i boy`.
