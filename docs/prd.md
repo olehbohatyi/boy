@@ -122,6 +122,40 @@ boy 0.3.0 and older understand neither `{file}`, BSD lines nor a bare hash, and 
 
 `from` is the extension point. Each source is a separate implementation behind one interface: find the latest version, build the download URL, download. v1 implements `github` (section 7) and `oracle` (section 7.1). Later sources (for example my own server) are added as new implementations without changing definitions that use the existing ones. boy 0.4.0 and older do not support `oracle` and say so when asked to install such a program.
 
+### 6.4 Per-program setup (planned)
+
+Not built yet, and not part of version 1. Some programs need more than a command in `bins/`: a variable (`JAVA_HOME` for `jdk`), an extra folder on `PATH`, an alias, or a line for shell completion.
+
+A definition declares this in an optional `[init]` table. There are no install scripts.
+
+| Key | Meaning |
+|---|---|
+| `envs` | Environment variables to set. |
+| `dirs` | Extra folders to add to `PATH`. |
+| `abbr` | Shell aliases. |
+| `eval` | Lines the shell runs at startup, for example shell completion. |
+| `note` | Message printed after install. |
+
+```toml
+[init]
+envs = { JAVA_HOME = "{pkgs}/jdk-{version}.jdk/Contents/Home" }
+note = "open a new terminal"
+```
+
+`{pkgs}` is the folder of the installed version, `pkgs/<name>/<version>/`.
+
+- boy collects `[init]` from every installed program into one generated file, `<home>/init.sh`, and rewrites it on install, update and remove. Removing a program therefore removes its setup.
+- The user adds one line to their shell startup file, once: `source "$HOME/.boy/init.sh"` (or the path of their boy home). `install.sh` may offer it, as it does for `PATH`. boy itself still never edits shell startup files.
+- boy 0.5.0 and older reject unknown keys, so the order is: code, then a release, then definitions that use `[init]`.
+
+To decide before building:
+
+- **Two shells:** zsh and bash must both be able to read the file, while `eval` lines often differ per shell (`starship init zsh`, `starship init bash`).
+- **Moving the home:** the file must stay correct when the boy home is moved (section 3), so it cannot simply hold absolute paths.
+- **`PATH` rule:** section 5 makes `bins/` the only folder added to `PATH`; `dirs` changes that.
+- **Several versions of one tool:** for example two JDK majors both provide `java`, so there must be a way to pick the active one.
+- **Trust:** `eval` lines run in the user's shell, so they are only as safe as the registry.
+
 ## 7. Network: the github Source
 
 boy uses no GitHub API and no tokens. It only follows public links.
@@ -244,7 +278,7 @@ After v1, fzf, helix, ripgrep-all and delta are added to the registry one at a t
 
 ## 15. Open Questions
 
-None at the moment.
+None for version 1. The planned per-program setup has its own open points (section 6.4).
 
 ## 16. Workflow
 
