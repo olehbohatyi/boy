@@ -1,19 +1,47 @@
-//! SHA-256 checks against a release's checksum file: `hash  filename` lines, BSD
+//! Checks against a release's checksum file. SHA-256: `hash  filename` lines, BSD
 //! `SHA256 (filename) = hash` lines, or a bare hash in a file made for one download.
+//! SHA-1 only from a `.sha1` file made for one download, as Maven publishes.
 
 use std::io::Read;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
+use sha1::Sha1;
 use sha2::{Digest, Sha256};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Algo {
+    Sha256,
+    Sha1,
+}
+
+impl Algo {
+    /// The algorithm of the checksum file `name`. `per_file` says it belongs to one
+    /// download; only such a file can be SHA-1.
+    pub fn of(name: &str, per_file: bool) -> Self {
+        if per_file && name.ends_with(".sha1") {
+            Algo::Sha1
+        } else {
+            Algo::Sha256
+        }
+    }
+}
 
 /// Check that `path` (downloaded as `file`) matches its hash in `sums`. `per_file`
 /// says the checksum file belongs to `file` alone, so it may hold only the hash.
-pub fn verify(path: &Path, sums: &str, file: &str, per_file: bool) -> Result<()> {
-    let expected = find(sums, file)
-        .or_else(|| if per_file { lone_hash(sums) } else { None })
-        .with_context(|| format!("`{file}` is not in the checksum file"))?;
-    let actual = sha256_file(path)?;
+pub fn verify(path: &Path, sums: &str, file: &str, per_file: bool, algo: Algo) -> Result<()> {
+    let expected = match algo {
+        Algo::Sha256 => find(sums, file)
+            .or_else(|| per_file.then(|| lone_hash(sums, 64)).flatten())
+            .with_context(|| format!("`{file}` is not in the checksum file"))?,
+        Algo::Sha1 => lone_hash(sums, 40).with_context(|| {
+            format!("the checksum file of `{file}` is not a bare SHA-1 hash (check `sums`)")
+        })?,
+    };
+    let actual = match algo {
+        Algo::Sha256 => hash_file::<Sha256>(path)?,
+        Algo::Sha1 => hash_file::<Sha1>(path)?,
+    };
     if !actual.eq_ignore_ascii_case(expected) {
         bail!("checksum mismatch for `{file}`: expected {expected}, got {actual}");
     }
@@ -43,20 +71,24 @@ fn bsd_line(line: &str) -> Option<(&str, &str)> {
     Some((hash.trim(), name))
 }
 
-/// The hash when it is the only thing in the file.
-fn lone_hash(sums: &str) -> Option<&str> {
+/// The hash of `len` hex digits when it is the only thing in the file.
+fn lone_hash(sums: &str, len: usize) -> Option<&str> {
     let hash = sums.trim();
-    is_sha256(hash).then_some(hash)
+    is_hex(hash, len).then_some(hash)
 }
 
 fn is_sha256(s: &str) -> bool {
-    s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())
+    is_hex(s, 64)
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+fn is_hex(s: &str, len: usize) -> bool {
+    s.len() == len && s.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+fn hash_file<D: Digest>(path: &Path) -> Result<String> {
     let mut file =
         std::fs::File::open(path).with_context(|| format!("cannot read {}", path.display()))?;
-    let mut hasher = Sha256::new();
+    let mut hasher = D::new();
     let mut buf = vec![0; 64 * 1024];
     loop {
         let n = file.read(&mut buf)?;
@@ -89,14 +121,14 @@ mod tests {
     fn accepts_a_matching_file() {
         let f = file_with("hello\n");
         let sums = format!("{}  other\n{HELLO}  jq-macos-amd64\n", "0".repeat(64));
-        verify(f.path(), &sums, "jq-macos-amd64", false).unwrap();
+        verify(f.path(), &sums, "jq-macos-amd64", false, Algo::Sha256).unwrap();
     }
 
     #[test]
     fn refuses_a_corrupted_file() {
         let f = file_with("hello, tampered\n");
         let sums = format!("{HELLO}  jq-macos-amd64\n");
-        let err = verify(f.path(), &sums, "jq-macos-amd64", false).unwrap_err();
+        let err = verify(f.path(), &sums, "jq-macos-amd64", false, Algo::Sha256).unwrap_err();
         assert!(err.to_string().contains("mismatch"));
     }
 
@@ -104,7 +136,7 @@ mod tests {
     fn refuses_a_file_missing_from_the_list() {
         let f = file_with("hello\n");
         let sums = format!("{HELLO}  jq-macos-arm64\n");
-        assert!(verify(f.path(), &sums, "jq-macos-amd64", false).is_err());
+        assert!(verify(f.path(), &sums, "jq-macos-amd64", false, Algo::Sha256).is_err());
     }
 
     #[test]
@@ -136,17 +168,17 @@ mod tests {
     fn accepts_a_bare_hash_only_from_a_per_file_checksum() {
         let f = file_with("hello\n");
         for sums in [HELLO.to_string(), format!("{HELLO}\r\n")] {
-            verify(f.path(), &sums, "starship.tar.gz", true).unwrap();
-            assert!(verify(f.path(), &sums, "starship.tar.gz", false).is_err());
+            verify(f.path(), &sums, "starship.tar.gz", true, Algo::Sha256).unwrap();
+            assert!(verify(f.path(), &sums, "starship.tar.gz", false, Algo::Sha256).is_err());
         }
         let two = format!("{HELLO}\n{HELLO}\n");
-        assert!(verify(f.path(), &two, "starship.tar.gz", true).is_err());
+        assert!(verify(f.path(), &two, "starship.tar.gz", true, Algo::Sha256).is_err());
     }
 
     #[test]
     fn refuses_a_corrupted_file_against_a_bare_hash() {
         let f = file_with("hello, tampered\n");
-        let err = verify(f.path(), HELLO, "starship.tar.gz", true).unwrap_err();
+        let err = verify(f.path(), HELLO, "starship.tar.gz", true, Algo::Sha256).unwrap_err();
         assert!(err.to_string().contains("mismatch"));
     }
 
@@ -154,6 +186,37 @@ mod tests {
     fn a_per_file_checksum_naming_another_file_is_refused() {
         let f = file_with("hello\n");
         let sums = format!("{HELLO}  other.tar.gz\n");
-        assert!(verify(f.path(), &sums, "rg.tar.gz", true).is_err());
+        assert!(verify(f.path(), &sums, "rg.tar.gz", true, Algo::Sha256).is_err());
+    }
+
+    // sha1("hello\n")
+    const HELLO_SHA1: &str = "f572d396fae9206628714fb2ce00f72e94f2258f";
+
+    #[test]
+    fn checks_a_per_file_sha1() {
+        let f = file_with("hello\n");
+        verify(f.path(), HELLO_SHA1, "mill.sh", true, Algo::Sha1).unwrap();
+        let bad = file_with("tampered\n");
+        let err = verify(bad.path(), HELLO_SHA1, "mill.sh", true, Algo::Sha1).unwrap_err();
+        assert!(err.to_string().contains("mismatch"), "{err}");
+        assert!(verify(f.path(), HELLO, "mill.sh", true, Algo::Sha1).is_err());
+    }
+
+    #[test]
+    fn a_sha1_file_with_a_name_in_it_says_what_is_wrong() {
+        let f = file_with("hello\n");
+        let sums = format!("{HELLO_SHA1}  mill.sh\n");
+        let err = verify(f.path(), &sums, "mill.sh", true, Algo::Sha1).unwrap_err();
+        assert!(err.to_string().contains("not a bare SHA-1 hash"), "{err}");
+    }
+
+    #[test]
+    fn sha1_comes_only_from_a_per_file_sha1_name() {
+        assert_eq!(Algo::of("tool.sh.sha1", true), Algo::Sha1);
+        assert_eq!(Algo::of("checksums.sha1", false), Algo::Sha256);
+        assert_eq!(Algo::of("tool.sh.sha256", true), Algo::Sha256);
+        let f = file_with("hello\n");
+        let sums = format!("{HELLO_SHA1}  mill.sh\n");
+        assert!(verify(f.path(), &sums, "mill.sh", false, Algo::Sha256).is_err());
     }
 }

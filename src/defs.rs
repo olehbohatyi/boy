@@ -19,6 +19,8 @@ pub struct Def {
     pub tags: String,
     pub bins: Vec<String>,
     pub sums: Option<String>,
+    /// Where to download release files from instead of the GitHub release.
+    pub site: Option<String>,
     pub plat: BTreeMap<String, Plat>,
 }
 
@@ -40,6 +42,17 @@ impl Def {
             bail!("`bins` is empty");
         }
         TagPattern::new(&def.tags)?;
+        if let Some(site) = &def.site {
+            if def.from != "github" {
+                bail!("`site` works only with `from = \"github\"` (check `site`)");
+            }
+            if !site.starts_with("https://") {
+                bail!("`site` must start with `https://`, not `{site}` (check `site`)");
+            }
+            if site.replace("{version}", "").contains(['{', '}']) {
+                bail!("`site` may use only `{{version}}`: `{site}` (check `site`)");
+            }
+        }
         Ok(def)
     }
 
@@ -493,6 +506,28 @@ mod tests {
                 "jdk-27.0.1.1.jdk/Contents/Home/bin/java"
             );
         }
+    }
+
+    #[test]
+    fn site_is_an_https_address_for_github_programs_only() {
+        let with =
+            |site: &str| Def::parse(&JQ.replace("tags", &format!("site = \"{site}\"\ntags")));
+        assert!(
+            with("https://example.org/{version}")
+                .unwrap()
+                .site
+                .is_some()
+        );
+        let typo = with("https://example.org/{versoin}")
+            .unwrap_err()
+            .to_string();
+        assert!(typo.contains("only `{version}`"), "{typo}");
+        let err = with("http://example.org").unwrap_err().to_string();
+        assert!(err.contains("https://"), "{err}");
+        let oracle = JQ
+            .replace("\"github\"", "\"oracle\"")
+            .replace("tags", "site = \"https://example.org\"\ntags");
+        assert!(Def::parse(&oracle).is_err());
     }
 
     #[test]

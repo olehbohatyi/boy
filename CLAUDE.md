@@ -22,7 +22,7 @@ cargo test -- --ignored   # tests that hit the network
 - `src/source.rs`: dispatch on a definition's `from`; `src/net.rs`: shared HTTP.
 - `src/github.rs`: the `github` source. Public release links only.
 - `src/oracle.rs`: the `oracle` source (Oracle JDK).
-- `src/sums.rs`: SHA-256 checks against a release's checksum file.
+- `src/sums.rs`: checks against a release's checksum file (SHA-256; SHA-1 for per-file `.sha1`).
 - `src/archive.rs`: unpacking `.tar.gz`, `.tar.xz` and `.zip`.
 - `src/registry.rs`: the local registry copy, refreshed from this repository's archive by direct link.
 - `src/install.rs`, `src/list.rs`, `src/remove.rs`, `src/search.rs`, `src/update.rs`: commands.
