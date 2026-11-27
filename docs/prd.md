@@ -74,7 +74,7 @@ All keys have four letters.
 | `tags` | no | Release tag pattern. Default `v{version}`. |
 | `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. With several commands, each is found in the same folder as `path`. |
 | `sums` | no | Name of the checksum file in the release, for example `SHA256SUMS`. May contain `{version}` and `{file}`, the release file name of the current platform. |
-| `site` | no | `github` only. An `https://` address the release files and checksum files are downloaded from instead of the GitHub release; the version still comes from GitHub. May contain `{version}`. |
+| `site` | no | `github` only. An `https://` address the release files and checksum files are downloaded from instead of the GitHub release; the version still comes from GitHub. May contain `{version}` and no other placeholder. |
 | `[plat]` | yes | One entry per supported platform: `file` is the release file name, `path` is the executable inside the archive (or the name to save a bare binary as). |
 
 `{version}` is the version without the tag's prefix. Platform keys in v1 are `macos-x86_64` and `macos-aarch64`. If the current platform has no entry, boy says the program is not available for this system and stops.
@@ -168,6 +168,8 @@ boy uses no GitHub API and no tokens. It only follows public links.
 - **Latest version:** request `https://github.com/<repo>/releases/latest`. GitHub answers with a redirect to `/releases/tag/<tag>`. boy reads the tag from the redirect and extracts `{version}` using the `tags` pattern.
 - **Download:** `https://github.com/<repo>/releases/download/<tag>/<file>`.
 - **Checksum:** if `sums` is set, boy downloads that file from the same release and checks the SHA-256 of the downloaded file against it. On a mismatch boy refuses to install. If `sums` is not set, boy installs and prints a warning.
+
+All requests, redirects included, must be `https`.
 
 Because none of this goes through the API, there is no rate limit to worry about, however many packages are installed.
 

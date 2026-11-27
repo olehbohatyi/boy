@@ -301,6 +301,21 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_per_file_sha1_template_checks_with_sha1() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), "hello\n").unwrap();
+        let (name, per_file) = sums_name("{file}.sha1", "1.0.0", "tool.sh");
+        let algo = sums::Algo::of(&name, per_file);
+        let hash = "f572d396fae9206628714fb2ce00f72e94f2258f";
+        sums::verify(file.path(), hash, "tool.sh", per_file, algo).unwrap();
+
+        // Without `{file}` the same hash is not accepted.
+        let (name, per_file) = sums_name("all.sha1", "1.0.0", "tool.sh");
+        let algo = sums::Algo::of(&name, per_file);
+        assert!(sums::verify(file.path(), hash, "tool.sh", per_file, algo).is_err());
+    }
+
     /// delta ships Apple Silicon only.
     #[test]
     fn delta_definition_is_apple_silicon_only() {

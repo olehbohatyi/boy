@@ -49,6 +49,9 @@ impl Def {
             if !site.starts_with("https://") {
                 bail!("`site` must start with `https://`, not `{site}` (check `site`)");
             }
+            if site.replace("{version}", "").contains(['{', '}']) {
+                bail!("`site` may use only `{{version}}`: `{site}` (check `site`)");
+            }
         }
         Ok(def)
     }
@@ -515,6 +518,10 @@ mod tests {
                 .site
                 .is_some()
         );
+        let typo = with("https://example.org/{versoin}")
+            .unwrap_err()
+            .to_string();
+        assert!(typo.contains("only `{version}`"), "{typo}");
         let err = with("http://example.org").unwrap_err().to_string();
         assert!(err.contains("https://"), "{err}");
         let oracle = JQ

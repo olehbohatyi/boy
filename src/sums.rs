@@ -31,12 +31,13 @@ impl Algo {
 /// says the checksum file belongs to `file` alone, so it may hold only the hash.
 pub fn verify(path: &Path, sums: &str, file: &str, per_file: bool, algo: Algo) -> Result<()> {
     let expected = match algo {
-        Algo::Sha256 => {
-            find(sums, file).or_else(|| per_file.then(|| lone_hash(sums, 64)).flatten())
-        }
-        Algo::Sha1 => lone_hash(sums, 40),
-    }
-    .with_context(|| format!("`{file}` is not in the checksum file"))?;
+        Algo::Sha256 => find(sums, file)
+            .or_else(|| per_file.then(|| lone_hash(sums, 64)).flatten())
+            .with_context(|| format!("`{file}` is not in the checksum file"))?,
+        Algo::Sha1 => lone_hash(sums, 40).with_context(|| {
+            format!("the checksum file of `{file}` is not a bare SHA-1 hash (check `sums`)")
+        })?,
+    };
     let actual = match algo {
         Algo::Sha256 => hash_file::<Sha256>(path)?,
         Algo::Sha1 => hash_file::<Sha1>(path)?,
@@ -199,6 +200,14 @@ mod tests {
         let err = verify(bad.path(), HELLO_SHA1, "mill.sh", true, Algo::Sha1).unwrap_err();
         assert!(err.to_string().contains("mismatch"), "{err}");
         assert!(verify(f.path(), HELLO, "mill.sh", true, Algo::Sha1).is_err());
+    }
+
+    #[test]
+    fn a_sha1_file_with_a_name_in_it_says_what_is_wrong() {
+        let f = file_with("hello\n");
+        let sums = format!("{HELLO_SHA1}  mill.sh\n");
+        let err = verify(f.path(), &sums, "mill.sh", true, Algo::Sha1).unwrap_err();
+        assert!(err.to_string().contains("not a bare SHA-1 hash"), "{err}");
     }
 
     #[test]

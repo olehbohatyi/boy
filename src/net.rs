@@ -9,9 +9,11 @@ use ureq::Agent;
 
 const USER_AGENT: &str = concat!("boy/", env!("CARGO_PKG_VERSION"));
 
+/// Every request, redirects included, must be `https`.
 pub fn agent(max_redirects: u32) -> Agent {
     Agent::config_builder()
         .user_agent(USER_AGENT)
+        .https_only(true)
         .max_redirects(max_redirects)
         .timeout_connect(Some(Duration::from_secs(15)))
         .build()
@@ -49,4 +51,17 @@ pub fn download(url: &str, dest: &Path) -> Result<()> {
         .with_context(|| format!("download interrupted: {url}"))?;
     file.flush()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ureq applies this to every hop, so a redirect cannot leave `https` either.
+    /// The request is refused before any connection.
+    #[test]
+    fn refuses_plain_http() {
+        let err = text("http://127.0.0.1:1/x").unwrap_err();
+        assert!(format!("{err:#}").contains("https"), "{err:#}");
+    }
 }
