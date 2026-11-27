@@ -471,6 +471,30 @@ mod tests {
         }
     }
 
+    /// Oracle JDK: a Java major as `repo`, the version in the file and folder names.
+    #[test]
+    fn jdk_definition_expands_to_the_oracle_names() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("defs");
+        let def = Def::load(&dir, "jdk").unwrap();
+        assert_eq!(
+            crate::source::Source::of(&def).unwrap(),
+            crate::source::Source::Oracle
+        );
+        assert_eq!(def.tag_pattern().tag("27.0.1.1"), "27.0.1.1");
+        assert_eq!(def.sums.as_deref(), Some("{file}.sha256"));
+        for (key, arch) in [("macos-x86_64", "x64"), ("macos-aarch64", "aarch64")] {
+            let plat = &def.plat[key];
+            assert_eq!(
+                expand(&plat.file, "27.0.1.1"),
+                format!("jdk-27.0.1.1_macos-{arch}_bin.tar.gz")
+            );
+            assert_eq!(
+                expand(&plat.path, "27.0.1.1"),
+                "jdk-27.0.1.1.jdk/Contents/Home/bin/java"
+            );
+        }
+    }
+
     #[test]
     fn expands_version() {
         assert_eq!(

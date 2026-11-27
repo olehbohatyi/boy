@@ -1,0 +1,11 @@
+name = "jdk"
+info = "Oracle Java Development Kit"
+from = "oracle"
+repo = "27"
+tags = "{version}"
+bins = ["java", "javac", "jar", "javadoc", "jshell", "jlink", "jpackage", "jcmd", "jps", "jstack", "jmap", "keytool"]
+sums = "{file}.sha256"
+
+[plat]
+macos-x86_64  = { file = "jdk-{version}_macos-x64_bin.tar.gz", path = "jdk-{version}.jdk/Contents/Home/bin/java" }
+macos-aarch64 = { file = "jdk-{version}_macos-aarch64_bin.tar.gz", path = "jdk-{version}.jdk/Contents/Home/bin/java" }
