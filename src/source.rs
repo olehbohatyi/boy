@@ -3,7 +3,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::defs::Def;
+use crate::defs::{self, Def};
 use crate::{github, oracle};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -73,7 +73,15 @@ impl Source {
     /// The download link for one file of a release.
     pub fn url(self, def: &Def, tag: &str, file: &str) -> String {
         match self {
-            Self::Github => github::download_url(&def.repo, tag, file),
+            Self::Github => match &def.site {
+                Some(site) => {
+                    // `tag` came from this pattern, so the version is always found.
+                    let version = def.tag_pattern().version(tag).unwrap_or(tag).to_string();
+                    let site = defs::expand(site, &version);
+                    format!("{}/{file}", site.trim_end_matches('/'))
+                }
+                None => github::download_url(&def.repo, tag, file),
+            },
             Self::Oracle => oracle::download_url(&def.repo, file),
         }
     }
@@ -104,6 +112,17 @@ mod tests {
         for bad in ["", "oracle/jdk", "27.0.1", "../27"] {
             assert!(Source::of(&def("oracle", bad)).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn a_site_replaces_the_github_release_links() {
+        let mut def = def("github", "a/b");
+        def.tags = "v{version}".into();
+        def.site = Some("https://example.org/tool/{version}/".into());
+        assert_eq!(
+            Source::Github.url(&def, "v1.2.3", "tool.sh"),
+            "https://example.org/tool/1.2.3/tool.sh"
+        );
     }
 
     #[test]

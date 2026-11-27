@@ -74,6 +74,7 @@ All keys have four letters.
 | `tags` | no | Release tag pattern. Default `v{version}`. |
 | `bins` | yes | Commands the package provides. Each gets a symlink in `bins/`. With several commands, each is found in the same folder as `path`. |
 | `sums` | no | Name of the checksum file in the release, for example `SHA256SUMS`. May contain `{version}` and `{file}`, the release file name of the current platform. |
+| `site` | no | `github` only. An `https://` address the release files and checksum files are downloaded from instead of the GitHub release; the version still comes from GitHub. May contain `{version}`. |
 | `[plat]` | yes | One entry per supported platform: `file` is the release file name, `path` is the executable inside the archive (or the name to save a bare binary as). |
 
 `{version}` is the version without the tag's prefix. Platform keys in v1 are `macos-x86_64` and `macos-aarch64`. If the current platform has no entry, boy says the program is not available for this system and stops.
@@ -109,12 +110,16 @@ macos-aarch64 = { file = "hyperfine-v{version}-aarch64-apple-darwin.tar.gz", pat
 
 Supported file formats: `.tar.gz`, `.tgz`, `.tar.xz`, `.zip`, and bare binaries.
 
-Checksums are SHA-256. The `sums` file may use either line style, and lines for other files or other algorithms are ignored:
+Checksums are SHA-256 (for the one exception see below). The `sums` file may use either line style, and lines for other files or other algorithms are ignored:
 
 - `<hash>  <file>`, as written by `sha256sum`;
 - `SHA256 (<file>) = <hash>`, the BSD style.
 
 A release with one checksum file per download names it with `{file}`, for example `sums = "{file}.sha256"`. Only such a file may also hold the bare hash and nothing else.
+
+The exception: when `sums` contains `{file}` and ends in `.sha1`, the file holds the bare SHA-1 hash. Maven Central publishes no stronger one.
+
+boy 0.5.0 and older know neither `site` nor SHA-1: a definition with `site` is an unknown key to them.
 
 boy 0.3.0 and older understand neither `{file}`, BSD lines nor a bare hash, and fail to install a program whose definition needs one of them.
 
@@ -226,7 +231,7 @@ Rust, written from scratch. gpm contributes lessons only (configurable install l
 - HTTP: a blocking client with `rustls` and bundled root certificates (`webpki-roots`). No OpenSSL, no dependency on the system root certificates. Redirects must be readable, not only followed.
 - Archives: `flate2` + `tar`, `lzma-rs` (pure Rust, for `.tar.xz`), `zip`.
 - Definitions and state: `serde` + `toml`. Oracle's version list: `serde_json`.
-- Checksums: `sha2`.
+- Checksums: `sha2`, `sha1`.
 
 ## 11. Utility Family
 

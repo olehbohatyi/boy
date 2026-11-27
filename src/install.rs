@@ -206,7 +206,8 @@ fn check_sums(
     let text = std::fs::read_to_string(&sums_path);
     let _ = std::fs::remove_file(&sums_path);
     let text = text.with_context(|| format!("cannot read `{sums_file}`"))?;
-    sums::verify(part, &text, file, per_file)
+    let algo = sums::Algo::of(&sums_file, per_file);
+    sums::verify(part, &text, file, per_file, algo)
 }
 
 /// The checksum file's name in the release, and whether it belongs to `file` alone.
